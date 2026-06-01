@@ -63,6 +63,8 @@ jobs:
 
       - name: Build APK
         run: cd android && ./gradlew assembleRelease --no-daemon
+        env:
+          RNMAPBOX_MAPS_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
 
       - name: Find APK
         run: find android/app/build/outputs/apk -name "*.apk" | tee apk-path.txt
