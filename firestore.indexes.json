@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role",               "order": "ASCENDING"  },
+        { "fieldPath": "serviceCity",        "order": "ASCENDING"  },
+        { "fieldPath": "totalTrips",         "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role",               "order": "ASCENDING"  },
+        { "fieldPath": "verificationStatus", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",          "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

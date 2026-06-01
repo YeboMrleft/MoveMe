@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful — Move-Me</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #E6F4FE;
+      color: #0D1B2A;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+    .icon { font-size: 64px; margin-bottom: 20px; display: block; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 12px; color: #0D1B2A; }
+    p { font-size: 15px; color: #6B7280; line-height: 1.6; margin-bottom: 20px; }
+    .countdown { font-size: 13px; color: #1E88E5; margin-bottom: 20px; }
+    .btn {
+      display: block;
+      background: #1E88E5;
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+      padding: 14px 32px;
+      border-radius: 50px;
+      text-decoration: none;
+      margin-bottom: 12px;
+    }
+    .btn-ghost {
+      display: block;
+      color: #6B7280;
+      font-size: 14px;
+      text-decoration: none;
+      padding: 8px;
+    }
+    .brand { margin-top: 28px; font-size: 12px; color: #9CA3AF; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="icon">✅</span>
+    <h1>Payment Successful!</h1>
+    <p>Your R10 platform fee has been confirmed. Return to Move-Me to continue.</p>
+    <p class="countdown">Returning to app in <span id="timer">5</span>s…</p>
+    <a id="btn-main" href="#" class="btn">Return to Move-Me</a>
+    <a id="btn-ghost" href="#" class="btn-ghost">Tap here if the app doesn't open</a>
+    <div class="brand">Move-Me · Powered by Inka-Tech Solutions</div>
+  </div>
+
+  <script>
+    var params  = new URLSearchParams(window.location.search);
+    var pid     = params.get('custom_str1') || '';
+    var purpose = params.get('custom_str2') || '';
+    var link    = 'moveme://payment/success?pid=' + encodeURIComponent(pid) + '&purpose=' + encodeURIComponent(purpose);
+
+    document.getElementById('btn-main').href  = link;
+    document.getElementById('btn-ghost').href = link;
+
+    // Auto-redirect after 3 s
+    setTimeout(function() { window.location.href = link; }, 3000);
+
+    // Countdown
+    var s = 5;
+    var el = document.getElementById('timer');
+    var iv = setInterval(function() {
+      s--;
+      if (el) el.textContent = s;
+      if (s <= 0) clearInterval(iv);
+    }, 1000);
+  </script>
+</body>
+</html>

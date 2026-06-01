@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Driver verification documents — only the driver owning the folder
+    match /drivers/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024; // 10 MB max
+    }
+
+    // Admin can read all driver documents for review
+    match /drivers/{uid}/{allPaths=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Job load photos — authenticated users can upload, anyone authenticated can read
+    match /jobs/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Profile photos
+    match /profiles/{uid}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}
