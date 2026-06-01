@@ -13,9 +13,6 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.inkatech.moveme',
-      config: {
-        googleMapsApiKey: process.env.GOOGLE_MAPS_KEY,
-      },
     },
     android: {
       package: 'com.inkatech.moveme',
@@ -24,11 +21,6 @@ module.exports = {
         backgroundColor: '#E6F4FE',
       },
       predictiveBackGestureEnabled: false,
-      config: {
-        googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_KEY,
-        },
-      },
       intentFilters: [
         {
           action: 'VIEW',
@@ -43,6 +35,7 @@ module.exports = {
     },
     extra: {
       googleMapsKey: process.env.GOOGLE_MAPS_KEY,
+      mapboxToken: process.env.MAPBOX_TOKEN,
       eas: {
         projectId: 'd13450bb-226f-4b10-ba56-35bf3fda5b21',
       },
@@ -57,6 +50,10 @@ module.exports = {
           color: '#1E88E5',
           sounds: [],
         },
+      ],
+      [
+        '@rnmapbox/maps',
+        { RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOADS_TOKEN },
       ],
     ],
   },

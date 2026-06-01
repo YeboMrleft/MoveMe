@@ -3,23 +3,26 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapboxGL from '@rnmapbox/maps';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { colors } from '../../constants/colors';
 import { listenToOpenJobsNear } from '../../services/jobService';
 import { useAuth } from '../../hooks/useAuth';
 import { Job } from '../../types';
 
-const isHuawei = Device.manufacturer?.toUpperCase().includes('HUAWEI') ||
-  Device.manufacturer?.toUpperCase().includes('HONOR') || false;
+const MAPBOX_TOKEN: string =
+  process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
+  (Constants.expoConfig?.extra as any)?.mapboxToken ?? '';
+
+MapboxGL.setAccessToken(MAPBOX_TOKEN);
 
 export default function DemandMapScreen() {
   const nav = useNavigation<any>();
   const { appUser } = useAuth();
-  const mapRef = useRef<MapView>(null);
+  const cameraRef = useRef<MapboxGL.Camera>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -33,16 +36,18 @@ export default function DemandMapScreen() {
       setLoading(false);
       if (data.length > 0) {
         setTimeout(() => {
-          const coords = data.map(j => ({
-            latitude: j.pickup.coords.latitude,
-            longitude: j.pickup.coords.longitude,
-          })).filter(c => c.latitude !== 0);
-          if (coords.length > 0) {
-            mapRef.current?.fitToCoordinates(coords, {
-              edgePadding: { top: 80, right: 60, bottom: 280, left: 60 },
-              animated: true,
-            });
-          }
+          const valid = data
+            .map(j => [j.pickup.coords.longitude, j.pickup.coords.latitude] as [number, number])
+            .filter(([lng, lat]) => lng !== 0 || lat !== 0);
+          if (valid.length === 0) return;
+          const lngs = valid.map(c => c[0]);
+          const lats = valid.map(c => c[1]);
+          cameraRef.current?.fitBounds(
+            [Math.max(...lngs), Math.max(...lats)],
+            [Math.min(...lngs), Math.min(...lats)],
+            { top: 80, right: 60, bottom: 280, left: 60 },
+            600,
+          );
         }, 600);
       }
     });
@@ -52,17 +57,15 @@ export default function DemandMapScreen() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    mapRef.current?.animateToRegion({
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    }, 500);
+    cameraRef.current?.setCamera({
+      centerCoordinate: [loc.coords.longitude, loc.coords.latitude],
+      zoomLevel: 13,
+      animationDuration: 500,
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => nav.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -78,55 +81,37 @@ export default function DemandMapScreen() {
 
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} color={colors.primary} size="large" />
-      ) : isHuawei ? (
-        <View style={styles.huaweiWrap}>
-          <Ionicons name="map-outline" size={56} color={colors.border} />
-          <Text style={styles.huaweiTitle}>Map not available</Text>
-          <Text style={styles.huaweiSub}>
-            Google Maps is not supported on this device. Browse open jobs from the Jobs tab instead.
-          </Text>
-          <View style={styles.huaweiCount}>
-            <Ionicons name="cube-outline" size={20} color={colors.primary} />
-            <Text style={styles.huaweiCountText}>{jobs.length} open job{jobs.length !== 1 ? 's' : ''} in {city}</Text>
-          </View>
-        </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <MapView
-            ref={mapRef}
+          <MapboxGL.MapView
             style={{ flex: 1 }}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={{
-              latitude: -26.2041,
-              longitude: 28.0473,
-              latitudeDelta: 0.5,
-              longitudeDelta: 0.5,
-            }}
+            styleURL={MapboxGL.StyleURL.Street}
             onPress={() => setSelectedJob(null)}
           >
+            <MapboxGL.Camera
+              ref={cameraRef}
+              zoomLevel={11}
+              centerCoordinate={[28.0473, -26.2041]}
+            />
             {jobs.map(job => (
-              <Marker
+              <MapboxGL.PointAnnotation
                 key={job.id}
-                coordinate={{
-                  latitude: job.pickup.coords.latitude,
-                  longitude: job.pickup.coords.longitude,
-                }}
-                onPress={() => setSelectedJob(job)}
+                id={job.id}
+                coordinate={[job.pickup.coords.longitude, job.pickup.coords.latitude]}
+                onSelected={() => setSelectedJob(job)}
               >
                 <View style={styles.markerPin}>
                   <Ionicons name="cube-outline" size={14} color={colors.white} />
                 </View>
-              </Marker>
+              </MapboxGL.PointAnnotation>
             ))}
-          </MapView>
+          </MapboxGL.MapView>
 
-          {/* Job count legend */}
           <View style={styles.legend}>
             <View style={styles.legendDot} />
             <Text style={styles.legendText}>Pickup location</Text>
           </View>
 
-          {/* Selected job card */}
           {selectedJob && (
             <View style={styles.jobCard}>
               <View style={styles.jobCardRoute}>
@@ -218,25 +203,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   viewBtnText: { fontSize: 15, fontWeight: '800', color: colors.white },
-  emptyOverlay: {
-    position: 'absolute', bottom: 24, left: 16, right: 16,
-  },
+  emptyOverlay: { position: 'absolute', bottom: 24, left: 16, right: 16 },
   emptyCard: {
     backgroundColor: colors.surface, borderRadius: 16, padding: 20,
     alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border,
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   emptyText: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
-  huaweiWrap: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, gap: 14,
-  },
-  huaweiTitle: { fontSize: 20, fontWeight: '800', color: colors.text, textAlign: 'center' },
-  huaweiSub: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  huaweiCount: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.primary + '12', borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
-  huaweiCountText: { fontSize: 15, fontWeight: '700', color: colors.primary },
 });
