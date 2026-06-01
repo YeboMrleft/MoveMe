@@ -52,7 +52,12 @@ jobs:
         run: cd android && ./gradlew assembleRelease --no-daemon
 
       - name: Verify key in AndroidManifest
-        run: grep -o 'MAPS_API_KEY.*' android/app/src/main/AndroidManifest.xml | head -3 || echo "Key not found in manifest"
+        run: |
+          echo "=== Maps API key line ==="
+          grep -i "geo.API_KEY" android/app/src/main/AndroidManifest.xml || echo "ERROR: No API key found in manifest!"
+          echo "=== Key length in manifest ==="
+          KEY=$(grep -o 'android:value="[^"]*"' android/app/src/main/AndroidManifest.xml | grep -A1 "geo.API_KEY" | grep -o '"[^"]*"' | tr -d '"' | head -1)
+          echo "Embedded key length: ${#KEY}"
 
       - name: Find APK
         run: find android/app/build/outputs/apk -name "*.apk" | tee apk-path.txt
