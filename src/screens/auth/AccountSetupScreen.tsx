@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
-import { createUser, applyReferralCode } from '../../services/userService';
+import { createUser, applyReferralCode, registerReferralCode } from '../../services/userService';
 
 export default function AccountSetupScreen() {
   const auth = getAuth();
@@ -38,6 +38,7 @@ export default function AccountSetupScreen() {
         totalTrips: 0,
         createdAt: Date.now(),
       });
+      await registerReferralCode(currentUser.uid);
       if (referralCode.trim()) {
         await applyReferralCode(currentUser.uid, referralCode.trim().toUpperCase());
       }

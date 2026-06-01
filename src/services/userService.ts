@@ -63,12 +63,20 @@ export const getLeaderboard = async (city: string): Promise<User[]> => {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 };
 
+export const generateReferralCode = (uid: string): string =>
+  uid.substring(0, 8).toUpperCase();
+
+export const registerReferralCode = (uid: string): Promise<void> => {
+  const code = generateReferralCode(uid);
+  return setDoc(doc(db, 'referralCodes', code), { uid });
+};
+
 export const applyReferralCode = async (newUid: string, code: string): Promise<boolean> => {
-  // Find the user whose UID starts with the code (first 8 chars uppercased)
-  const snap = await getDocs(collection(db, 'users'));
-  const referrer = snap.docs.find(d => d.id.substring(0, 8).toUpperCase() === code.toUpperCase());
-  if (!referrer) return false;
-  await updateDoc(doc(db, 'users', newUid), { referredBy: referrer.id });
-  await updateDoc(doc(db, 'users', referrer.id), { referralCount: increment(1) });
+  const snap = await getDoc(doc(db, 'referralCodes', code.toUpperCase().trim()));
+  if (!snap.exists()) return false;
+  const referrerId = snap.data().uid as string;
+  if (referrerId === newUid) return false;
+  await updateDoc(doc(db, 'users', newUid), { referredBy: referrerId });
+  await updateDoc(doc(db, 'users', referrerId), { referralCount: increment(1) });
   return true;
 };

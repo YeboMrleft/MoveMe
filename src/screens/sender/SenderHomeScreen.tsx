@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
   TouchableOpacity, ActivityIndicator,
@@ -14,7 +14,9 @@ import { listenToUserJobs } from '../../services/jobService';
 import { listenToNotifications } from '../../services/notificationService';
 import { Job } from '../../types';
 import Button from '../../components/Button';
+import ShareModal from '../../components/ShareModal';
 import { formatScheduledTime } from '../../utils/formatSchedule';
+import { generateReferralCode } from '../../services/userService';
 import { SenderStackParams } from '../../navigation/SenderNavigator';
 
 type Nav = StackNavigationProp<SenderStackParams, 'SenderTabs'>;
@@ -42,7 +44,11 @@ export default function SenderHomeScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [shareVisible, setShareVisible] = useState(false);
+  const [completedJobId, setCompletedJobId] = useState<string | null>(null);
+  const shownCompletion = useRef<Set<string>>(new Set());
   const uid = getAuth().currentUser?.uid ?? '';
+  const referralCode = uid ? generateReferralCode(uid) : undefined;
 
   useEffect(() => {
     return listenToNotifications(uid, items => {
@@ -54,6 +60,15 @@ export default function SenderHomeScreen() {
     const unsub = listenToUserJobs(uid, data => {
       setJobs(data);
       setLoading(false);
+      // Show share prompt once per completed job
+      const newlyCompleted = data.find(
+        j => j.status === 'completed' && !shownCompletion.current.has(j.id)
+      );
+      if (newlyCompleted) {
+        shownCompletion.current.add(newlyCompleted.id);
+        setCompletedJobId(newlyCompleted.id);
+        setShareVisible(true);
+      }
     });
     return unsub;
   }, [uid]);
@@ -65,15 +80,27 @@ export default function SenderHomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.logo}>Move-Me</Text>
-        <TouchableOpacity onPress={() => nav.navigate('Notifications')} style={styles.bellBtn}>
-          <Ionicons name="notifications-outline" size={24} color={colors.textSecondary} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => setShareVisible(true)} style={styles.shareBtn}>
+            <Ionicons name="share-social-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => nav.navigate('Notifications')} style={styles.bellBtn}>
+            <Ionicons name="notifications-outline" size={24} color={colors.textSecondary} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <ShareModal
+        visible={shareVisible}
+        onClose={() => { setShareVisible(false); setCompletedJobId(null); }}
+        referralCode={referralCode}
+        jobCompleted={!!completedJobId}
+      />
 
       {loading ? (
         <ActivityIndicator style={styles.loader} color={colors.primary} size="large" />
@@ -186,6 +213,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   logo: { fontSize: 22, fontWeight: '900', color: colors.primary },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  shareBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.primary + '12',
+    alignItems: 'center', justifyContent: 'center',
+  },
   bellBtn: { position: 'relative' },
   badge: {
     position: 'absolute', top: -4, right: -6,

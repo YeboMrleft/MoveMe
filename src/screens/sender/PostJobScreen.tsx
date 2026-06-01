@@ -137,6 +137,7 @@ export default function PostJobScreen() {
 
     if (!rawPickup) { Alert.alert('Pickup required', 'Please enter a pickup address.'); return; }
     if (!rawDropoff) { Alert.alert('Dropoff required', 'Please enter a dropoff address.'); return; }
+    if (!description.trim()) { Alert.alert('Description required', 'Please list your items so drivers can assess the job and quote accurately.'); return; }
     if (!loadPhotoUri) { Alert.alert('Photo required', 'Please add a photo of your load so drivers can assess the job.'); return; }
 
     if (pickupCoords.latitude === 0 && pickupCoords.longitude === 0) {
