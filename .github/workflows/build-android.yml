@@ -5,6 +5,9 @@ on:
     branches: [master]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,9 +43,12 @@ jobs:
       - name: Build APK
         run: cd android && ./gradlew assembleRelease --no-daemon
 
+      - name: Find APK
+        run: find android/app/build/outputs/apk -name "*.apk" | tee apk-path.txt
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: moveme-${{ github.run_number }}.apk
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: android/app/build/outputs/apk/**/*.apk
           retention-days: 30
