@@ -25,17 +25,19 @@ interface Props {
 const AddressAutocomplete = forwardRef<GooglePlacesAutocompleteRef, Props>(
   ({ label, placeholder, onSelect, zIndex = 1 }, ref) => {
 
-    const handlePress = async (data: any, details: any) => {
+    const handlePress = async (data: any, _details: any) => {
       const address = data.description ?? data.structured_formatting?.main_text ?? '';
 
-      // Primary: geometry from Places Details API
-      const loc = details?.geometry?.location;
-      if (loc?.lat != null && loc?.lng != null && (loc.lat !== 0 || loc.lng !== 0)) {
-        onSelect(address, { latitude: loc.lat, longitude: loc.lng });
-        return;
-      }
+      // Primary: device geocoder (free — no API billing)
+      try {
+        const results = await Location.geocodeAsync(address);
+        if (results.length > 0 && (results[0].latitude !== 0 || results[0].longitude !== 0)) {
+          onSelect(address, { latitude: results[0].latitude, longitude: results[0].longitude });
+          return;
+        }
+      } catch {}
 
-      // Fallback 1: Google Geocoding API
+      // Fallback: Google Geocoding API (cheaper than Places Details)
       if (API_KEY && address) {
         try {
           const res = await fetch(
@@ -50,15 +52,6 @@ const AddressAutocomplete = forwardRef<GooglePlacesAutocompleteRef, Props>(
         } catch {}
       }
 
-      // Fallback 2: device geocoder
-      try {
-        const results = await Location.geocodeAsync(address);
-        if (results.length > 0) {
-          onSelect(address, { latitude: results[0].latitude, longitude: results[0].longitude });
-          return;
-        }
-      } catch {}
-
       onSelect(address, { latitude: 0, longitude: 0 });
     };
 
@@ -68,7 +61,6 @@ const AddressAutocomplete = forwardRef<GooglePlacesAutocompleteRef, Props>(
         <GooglePlacesAutocomplete
           ref={ref}
           placeholder={placeholder}
-          fetchDetails
           keyboardShouldPersistTaps="handled"
           onPress={handlePress}
           query={{

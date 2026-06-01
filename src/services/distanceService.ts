@@ -1,11 +1,9 @@
-import Constants from 'expo-constants';
-
-const API_KEY: string = (Constants.expoConfig?.extra as any)?.googleMapsKey ?? '';
-
 // SA bakkie pricing formula
-const BASE_FARE = 80;   // rands
-const RATE_LOW = 8;     // R per km  (competitive)
-const RATE_HIGH = 12;   // R per km  (fair market)
+const BASE_FARE = 80;
+const RATE_LOW = 8;
+const RATE_HIGH = 12;
+const ROAD_FACTOR = 1.35; // straight-line to road-distance multiplier
+const AVG_SPEED_KMH = 40; // urban average
 
 export interface RouteInfo {
   distanceKm: number;
@@ -14,29 +12,31 @@ export interface RouteInfo {
   suggestedMax: number;
 }
 
+function haversineKm(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+): number {
+  const R = 6371;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
 export const getRouteDistance = async (
   origin: { latitude: number; longitude: number },
-  destination: { latitude: number; longitude: number }
+  destination: { latitude: number; longitude: number },
 ): Promise<RouteInfo | null> => {
-  if (!API_KEY) return null;
   try {
-    const url =
-      `https://maps.googleapis.com/maps/api/distancematrix/json` +
-      `?origins=${origin.latitude},${origin.longitude}` +
-      `&destinations=${destination.latitude},${destination.longitude}` +
-      `&key=${API_KEY}`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    const element = data?.rows?.[0]?.elements?.[0];
-    if (element?.status !== 'OK') return null;
-
-    const distanceKm = Math.round((element.distance.value / 1000) * 10) / 10;
-    const durationMin = Math.round(element.duration.value / 60);
+    const straightKm = haversineKm(origin, destination);
+    const distanceKm = Math.round(straightKm * ROAD_FACTOR * 10) / 10;
+    const durationMin = Math.round((distanceKm / AVG_SPEED_KMH) * 60);
     const suggestedMin = Math.round(BASE_FARE + distanceKm * RATE_LOW);
     const suggestedMax = Math.round(BASE_FARE + distanceKm * RATE_HIGH);
-
     return { distanceKm, durationMin, suggestedMin, suggestedMax };
   } catch {
     return null;
