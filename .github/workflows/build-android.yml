@@ -32,7 +32,9 @@ jobs:
         run: npm ci
 
       - name: Create .env
-        run: echo "GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}" > .env
+        run: |
+          echo "GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}" > .env
+          echo "EXPO_PUBLIC_GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}" >> .env
 
       - name: Verify key is set
         run: |
