@@ -19,6 +19,7 @@ import { getDriverTier } from '../../utils/driverTier';
 import { SenderStackParams } from '../../navigation/SenderNavigator';
 import { getAuth } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
+import WaitingForDriverAnimation from '../../components/WaitingForDriverAnimation';
 import { consumePaymentResult } from '../../services/paymentResultStore';
 import { sendPushNotification } from '../../services/notificationService';
 import { addFavouriteDriver, removeFavouriteDriver } from '../../services/userService';
@@ -212,11 +213,7 @@ export default function JobOffersScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.emptyTitle}>Waiting for drivers…</Text>
-            <Text style={styles.emptySubtext}>Nearby verified drivers can see your job and are submitting prices.</Text>
-          </View>
+          <WaitingForDriverAnimation offerCount={totalDrivers} />
         }
         renderItem={({ item, index }) => (
           <View style={[styles.offerCard, index === 0 && styles.topOffer]}>
