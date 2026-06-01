@@ -25,6 +25,7 @@ import { uploadPhoto } from '../../services/storageService';
 import { formatScheduledTime } from '../../utils/formatSchedule';
 import { JobTemplate } from '../../types';
 import { JOB_CATEGORIES, JobCategory } from '../../constants/categories';
+import { LoadWeight } from '../../services/distanceService';
 import { SenderStackParams } from '../../navigation/SenderNavigator';
 
 type Nav = StackNavigationProp<SenderStackParams, 'PostJob'>;
@@ -48,6 +49,7 @@ export default function PostJobScreen() {
   const [schedulePickerOpen, setSchedulePickerOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [loadWeight, setLoadWeight] = useState<LoadWeight>('medium');
 
   const { appUser } = useAuth();
   const pickupRef = useRef<GooglePlacesAutocompleteRef>(null);
@@ -135,6 +137,7 @@ export default function PostJobScreen() {
 
     if (!rawPickup) { Alert.alert('Pickup required', 'Please enter a pickup address.'); return; }
     if (!rawDropoff) { Alert.alert('Dropoff required', 'Please enter a dropoff address.'); return; }
+    if (!loadPhotoUri) { Alert.alert('Photo required', 'Please add a photo of your load so drivers can assess the job.'); return; }
 
     if (pickupCoords.latitude === 0 && pickupCoords.longitude === 0) {
       Alert.alert(
@@ -274,13 +277,33 @@ export default function PostJobScreen() {
           ))}
         </ScrollView>
 
+        {/* Load weight */}
+        <Text style={styles.catLabel}>How heavy is the load?</Text>
+        <View style={styles.weightRow}>
+          {([
+            { key: 'light', label: 'Light', sub: 'Boxes / small items' },
+            { key: 'medium', label: 'Medium', sub: '1-bedroom load' },
+            { key: 'heavy', label: 'Heavy', sub: '2–3 bedrooms' },
+          ] as { key: LoadWeight; label: string; sub: string }[]).map(w => (
+            <TouchableOpacity
+              key={w.key}
+              style={[styles.weightChip, loadWeight === w.key && styles.weightChipActive]}
+              onPress={() => setLoadWeight(w.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.weightLabel, loadWeight === w.key && { color: colors.white }]}>{w.label}</Text>
+              <Text style={[styles.weightSub, loadWeight === w.key && { color: colors.white + 'CC' }]}>{w.sub}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <Input
-          label="Description (optional)"
+          label="Describe your items"
           value={description}
           onChangeText={setDescription}
-          placeholder="e.g. 2-bedroom furniture, 10 boxes"
+          placeholder="e.g. 2-seater couch, queen bed, 15 boxes, washing machine — the more detail, the more accurate the quote"
           multiline numberOfLines={3}
-          style={{ height: 80, textAlignVertical: 'top', paddingTop: 10 }}
+          style={{ height: 90, textAlignVertical: 'top', paddingTop: 10 }}
         />
 
         {/* Load photo */}
@@ -296,8 +319,8 @@ export default function PostJobScreen() {
           ) : (
             <>
               <Ionicons name="image-outline" size={32} color={colors.textMuted} />
-              <Text style={styles.photoLabel}>Add a photo of your load</Text>
-              <Text style={styles.photoHint}>Optional — helps drivers understand the job</Text>
+              <Text style={styles.photoLabel}>Add a photo of your load <Text style={{ color: colors.danger }}>*</Text></Text>
+              <Text style={styles.photoHint}>Required — helps drivers assess the job and price</Text>
             </>
           )}
         </TouchableOpacity>
@@ -438,6 +461,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
   },
   catRow: { gap: 8, paddingBottom: 16 },
+  weightRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  weightChip: {
+    flex: 1, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', gap: 2,
+  },
+  weightChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  weightLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
+  weightSub: { fontSize: 10, color: colors.textMuted, textAlign: 'center' },
   catChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: 20, borderWidth: 1.5, borderColor: colors.border,
