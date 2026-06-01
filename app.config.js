@@ -45,7 +45,11 @@ module.exports = {
     },
     extra: {
       googleMapsKey: process.env.GOOGLE_MAPS_KEY,
+      eas: {
+        projectId: 'd13450bb-226f-4b10-ba56-35bf3fda5b21',
+      },
     },
+    owner: 'mrnxele',
     plugins: [
       'expo-font',
       [
