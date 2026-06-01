@@ -20,10 +20,8 @@ module.exports = {
     android: {
       package: 'com.inkatech.moveme',
       adaptiveIcon: {
+        foregroundImage: './assets/icon.png',
         backgroundColor: '#E6F4FE',
-        foregroundImage: './assets/android-icon-foreground.png',
-        backgroundImage: './assets/android-icon-background.png',
-        monochromeImage: './assets/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
       config: {
