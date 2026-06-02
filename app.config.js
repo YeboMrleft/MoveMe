@@ -18,7 +18,7 @@ module.exports = {
       package: 'com.inkatech.moveme',
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
-        backgroundColor: '#E6F4FE',
+        backgroundColor: '#007A4D',
       },
       predictiveBackGestureEnabled: false,
       intentFilters: [
