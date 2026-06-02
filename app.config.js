@@ -51,10 +51,6 @@ module.exports = {
           sounds: [],
         },
       ],
-      [
-        '@rnmapbox/maps',
-        { RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOADS_TOKEN },
-      ],
     ],
   },
 };

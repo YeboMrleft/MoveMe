@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -19,6 +19,23 @@ import { useAuth } from '../../hooks/useAuth';
 import { Share } from 'react-native';
 
 type TripParams = { TripActive: { jobId: string } };
+
+const openNavigation = (lat: number, lng: number, label: string) => {
+  const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+  const wazeUrl   = `waze://?ll=${lat},${lng}&navigate=yes`;
+
+  Linking.canOpenURL(wazeUrl).then(hasWaze => {
+    if (hasWaze) {
+      Alert.alert(`Navigate to ${label}`, 'Choose your navigation app', [
+        { text: 'Waze',        onPress: () => Linking.openURL(wazeUrl) },
+        { text: 'Google Maps', onPress: () => Linking.openURL(googleUrl) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    } else {
+      Linking.openURL(googleUrl);
+    }
+  });
+};
 
 const STATUS_LABEL: Record<string, string> = {
   accepted: 'Driver on the way',
@@ -286,6 +303,33 @@ export default function TripActiveScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* Sender navigation — navigate to pickup to be ready */}
+        {!isDriver && isLive && (
+          <View style={styles.navCard}>
+            <View style={styles.navHeader}>
+              <Ionicons name="navigate" size={18} color={colors.primary} />
+              <Text style={styles.navTitle}>
+                {job.status === 'accepted' ? 'Your pickup location' : 'Your dropoff location'}
+              </Text>
+            </View>
+            <Text style={styles.navAddress} numberOfLines={2}>
+              {job.status === 'accepted' ? job.pickup.address : job.dropoff.address}
+            </Text>
+            <TouchableOpacity
+              style={styles.navBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                const dest = job.status === 'accepted' ? job.pickup : job.dropoff;
+                openNavigation(dest.coords.latitude, dest.coords.longitude,
+                  job.status === 'accepted' ? 'Pickup' : 'Dropoff');
+              }}
+            >
+              <Ionicons name="navigate-circle" size={22} color={colors.white} />
+              <Text style={styles.navBtnText}>Open Navigation</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Track button — sender only, when driver has shared location */}
         {!isDriver && isLive && (
           <TouchableOpacity
@@ -306,6 +350,49 @@ export default function TripActiveScreen() {
             </View>
             {canTrack && <Ionicons name="navigate" size={22} color={colors.primary} />}
           </TouchableOpacity>
+        )}
+
+        {/* Driver navigation buttons */}
+        {isDriver && isLive && (
+          <View style={styles.navCard}>
+            <View style={styles.navHeader}>
+              <Ionicons name="navigate" size={18} color={colors.primary} />
+              <Text style={styles.navTitle}>
+                {job.status === 'accepted' ? 'Navigate to Pickup' : 'Navigate to Dropoff'}
+              </Text>
+            </View>
+            <Text style={styles.navAddress} numberOfLines={2}>
+              {job.status === 'accepted' ? job.pickup.address : job.dropoff.address}
+            </Text>
+            <TouchableOpacity
+              style={styles.navBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                const dest = job.status === 'accepted' ? job.pickup : job.dropoff;
+                openNavigation(dest.coords.latitude, dest.coords.longitude,
+                  job.status === 'accepted' ? 'Pickup' : 'Dropoff');
+              }}
+            >
+              <Ionicons name="navigate-circle" size={22} color={colors.white} />
+              <Text style={styles.navBtnText}>
+                Open Navigation
+              </Text>
+            </TouchableOpacity>
+            {job.status === 'accepted' && (
+              <TouchableOpacity
+                style={styles.navBtnSecondary}
+                activeOpacity={0.85}
+                onPress={() => openNavigation(
+                  job.dropoff.coords.latitude,
+                  job.dropoff.coords.longitude,
+                  'Dropoff',
+                )}
+              >
+                <Ionicons name="map-outline" size={16} color={colors.primary} />
+                <Text style={styles.navBtnSecondaryText}>Preview dropoff location</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         <View style={styles.actions}>
@@ -408,6 +495,27 @@ const styles = StyleSheet.create({
   },
   trackTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
   trackSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  navCard: {
+    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
+    borderWidth: 2, borderColor: colors.primary,
+    gap: 10,
+    shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  navHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  navTitle: { fontSize: 15, fontWeight: '800', color: colors.primary },
+  navAddress: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  navBtn: {
+    backgroundColor: colors.primary, borderRadius: 12,
+    paddingVertical: 14, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  navBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+  navBtnSecondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 8,
+  },
+  navBtnSecondaryText: { fontSize: 13, fontWeight: '600', color: colors.primary },
   actions: { gap: 0 },
   mb: { marginBottom: 10 },
   ratedBadge: {

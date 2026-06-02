@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, Image,
+  TouchableOpacity, ActivityIndicator, Image, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -57,6 +57,22 @@ export default function JobDetailScreen() {
   const isOpen = ['open', 'reviewing'].includes(job.status);
   const notVerified = appUser?.verificationStatus !== 'verified';
 
+  const openNavigation = (lat: number, lng: number, label: string) => {
+    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    const wazeUrl = `waze://?ll=${lat},${lng}&navigate=yes`;
+    Linking.canOpenURL(wazeUrl).then(hasWaze => {
+      if (hasWaze) {
+        Alert.alert(`Navigate to ${label}`, 'Choose your navigation app', [
+          { text: 'Waze', onPress: () => Linking.openURL(wazeUrl) },
+          { text: 'Google Maps', onPress: () => Linking.openURL(googleUrl) },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+      } else {
+        Linking.openURL(googleUrl);
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -76,6 +92,13 @@ export default function JobDetailScreen() {
               <Text style={styles.locLabel}>Pickup</Text>
               <Text style={styles.locValue}>{job.pickup.address}</Text>
             </View>
+            <TouchableOpacity
+              style={styles.navPill}
+              onPress={() => openNavigation(job.pickup.coords.latitude, job.pickup.coords.longitude, 'Pickup')}
+            >
+              <Ionicons name="navigate-outline" size={13} color={colors.primary} />
+              <Text style={styles.navPillText}>Go</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.locConnector} />
           <View style={styles.locItem}>
@@ -84,6 +107,13 @@ export default function JobDetailScreen() {
               <Text style={styles.locLabel}>Dropoff</Text>
               <Text style={styles.locValue}>{job.dropoff.address}</Text>
             </View>
+            <TouchableOpacity
+              style={[styles.navPill, { borderColor: colors.danger + '60' }]}
+              onPress={() => openNavigation(job.dropoff.coords.latitude, job.dropoff.coords.longitude, 'Dropoff')}
+            >
+              <Ionicons name="navigate-outline" size={13} color={colors.danger} />
+              <Text style={[styles.navPillText, { color: colors.danger }]}>Go</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -207,6 +237,12 @@ const styles = StyleSheet.create({
   },
   locItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   locDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  navPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1.5, borderColor: colors.primary + '60',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  navPillText: { fontSize: 12, fontWeight: '700', color: colors.primary },
   locConnector: { width: 2, height: 20, backgroundColor: colors.border, marginLeft: 5, marginVertical: 4 },
   locLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   locValue: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 2 },

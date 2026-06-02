@@ -1,21 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapboxGL from '@rnmapbox/maps';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { colors } from '../../constants/colors';
 import { listenToJob } from '../../services/jobService';
 import { Job } from '../../types';
-
-const MAPBOX_TOKEN: string =
-  process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
-  (Constants.expoConfig?.extra as any)?.mapboxToken ?? '';
-
-MapboxGL.setAccessToken(MAPBOX_TOKEN);
+import MapboxWebView from '../../components/MapboxWebView';
+import type WebView from 'react-native-webview';
 
 type Params = { TrackDriver: { jobId: string } };
 
@@ -30,19 +22,42 @@ export default function TrackDriverScreen() {
   const nav = useNavigation<any>();
   const { params } = useRoute<RouteProp<Params, 'TrackDriver'>>();
   const { jobId } = params;
+  const webRef = useRef<WebView>(null);
 
   const [job, setJob] = useState<Job | null>(null);
   const [tick, setTick] = useState(0);
-  const cameraRef = useRef<MapboxGL.Camera>(null);
   const fittedRef = useRef(false);
+  const mapReady = useRef(false);
 
   useEffect(() => {
     return listenToJob(jobId, j => {
-      setJob(j);
-      if (j.driverLocation && !fittedRef.current) {
-        fittedRef.current = true;
-        fitMap(j);
-      }
+      setJob(prev => {
+        if (j.driverLocation && mapReady.current) {
+          // Update driver marker live without re-rendering the whole WebView
+          webRef.current?.injectJavaScript(
+            `(function(){
+              window.addOrUpdateMarker('driver',${j.driverLocation.longitude},${j.driverLocation.latitude},'${colors.primary}','🚚');
+              window.updateRoute(
+                [[${j.driverLocation.longitude},${j.driverLocation.latitude}],
+                 [${j.pickup.coords.longitude},${j.pickup.coords.latitude}],
+                 [${j.dropoff.coords.longitude},${j.dropoff.coords.latitude}]],
+                '${colors.primary}'
+              );
+              ${!fittedRef.current ? `
+              fittedRef_done=true;
+              var lngs=[${j.driverLocation.longitude},${j.pickup.coords.longitude},${j.dropoff.coords.longitude}];
+              var lats=[${j.driverLocation.latitude},${j.pickup.coords.latitude},${j.dropoff.coords.latitude}];
+              window.fitBounds(
+                [Math.min(...lngs),Math.min(...lats)],
+                [Math.max(...lngs),Math.max(...lats)],
+                {top:80,right:60,bottom:260,left:60}
+              );` : ''}
+            })(); true;`
+          );
+          if (!fittedRef.current) fittedRef.current = true;
+        }
+        return j;
+      });
     });
   }, [jobId]);
 
@@ -51,94 +66,46 @@ export default function TrackDriverScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const fitMap = (j: Job) => {
-    if (!j.driverLocation) return;
-    const coords = [
-      [j.driverLocation.longitude, j.driverLocation.latitude],
-      [j.pickup.coords.longitude, j.pickup.coords.latitude],
-      [j.dropoff.coords.longitude, j.dropoff.coords.latitude],
-    ];
-    const lngs = coords.map(c => c[0]);
-    const lats = coords.map(c => c[1]);
-    cameraRef.current?.fitBounds(
-      [Math.max(...lngs), Math.max(...lats)],
-      [Math.min(...lngs), Math.min(...lats)],
-      { top: 80, right: 60, bottom: 260, left: 60 },
-      400,
+  const centreOnDriver = () => {
+    if (!job?.driverLocation) return;
+    webRef.current?.injectJavaScript(
+      `(function(){ map.flyTo({ center:[${job.driverLocation.longitude},${job.driverLocation.latitude}], zoom:14, duration:400 }); })(); true;`
     );
   };
 
-  const centreOnDriver = () => {
-    if (!job?.driverLocation) return;
-    cameraRef.current?.setCamera({
-      centerCoordinate: [job.driverLocation.longitude, job.driverLocation.latitude],
-      zoomLevel: 14,
-      animationDuration: 400,
-    });
-  };
+  const driverLoc = job?.driverLocation ?? null;
+  const waiting = !driverLoc;
 
-  const driverCoord = job?.driverLocation ?? null;
-  const waiting = !driverCoord;
-
-  const routeCoordinates = job && driverCoord ? [
-    [driverCoord.longitude, driverCoord.latitude],
-    [job.pickup.coords.longitude, job.pickup.coords.latitude],
-    [job.dropoff.coords.longitude, job.dropoff.coords.latitude],
+  // Build initial markers + route for the WebView
+  const initialMarkers = job && driverLoc ? [
+    { id: 'pickup',  longitude: job.pickup.coords.longitude,  latitude: job.pickup.coords.latitude,  color: colors.primary, emoji: '📍' },
+    { id: 'dropoff', longitude: job.dropoff.coords.longitude, latitude: job.dropoff.coords.latitude, color: colors.danger,  emoji: '🏁' },
+    { id: 'driver',  longitude: driverLoc.longitude,          latitude: driverLoc.latitude,           color: colors.primary, emoji: '🚚' },
   ] : [];
+
+  const route = job && driverLoc ? {
+    coordinates: [
+      [driverLoc.longitude, driverLoc.latitude] as [number, number],
+      [job.pickup.coords.longitude, job.pickup.coords.latitude] as [number, number],
+      [job.dropoff.coords.longitude, job.dropoff.coords.latitude] as [number, number],
+    ],
+    color: colors.primary,
+  } : undefined;
+
+  const center: [number, number] = driverLoc
+    ? [driverLoc.longitude, driverLoc.latitude]
+    : [28.0473, -26.2041];
 
   return (
     <View style={styles.root}>
-      {job && !waiting ? (
-        <MapboxGL.MapView style={StyleSheet.absoluteFillObject} styleURL={MapboxGL.StyleURL.Street}>
-          <MapboxGL.Camera
-            ref={cameraRef}
-            zoomLevel={12}
-            centerCoordinate={[driverCoord!.longitude, driverCoord!.latitude]}
-          />
-
-          {routeCoordinates.length > 0 && (
-            <MapboxGL.ShapeSource
-              id="routeSource"
-              shape={{
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: routeCoordinates },
-                properties: {},
-              }}
-            >
-              <MapboxGL.LineLayer
-                id="routeLine"
-                style={{ lineColor: colors.primary, lineWidth: 2, lineDasharray: [3, 3] }}
-              />
-            </MapboxGL.ShapeSource>
-          )}
-
-          <MapboxGL.PointAnnotation
-            id="pickup"
-            coordinate={[job!.pickup.coords.longitude, job!.pickup.coords.latitude]}
-          >
-            <View style={[styles.markerPin, { backgroundColor: colors.primary }]}>
-              <Ionicons name="radio-button-on" size={14} color={colors.white} />
-            </View>
-          </MapboxGL.PointAnnotation>
-
-          <MapboxGL.PointAnnotation
-            id="dropoff"
-            coordinate={[job!.dropoff.coords.longitude, job!.dropoff.coords.latitude]}
-          >
-            <View style={[styles.markerPin, { backgroundColor: colors.danger }]}>
-              <Ionicons name="location" size={14} color={colors.white} />
-            </View>
-          </MapboxGL.PointAnnotation>
-
-          <MapboxGL.PointAnnotation
-            id="driver"
-            coordinate={[driverCoord!.longitude, driverCoord!.latitude]}
-          >
-            <View style={styles.driverMarker}>
-              <Ionicons name="car" size={20} color={colors.white} />
-            </View>
-          </MapboxGL.PointAnnotation>
-        </MapboxGL.MapView>
+      {!waiting ? (
+        <MapboxWebView
+          center={center}
+          zoom={12}
+          markers={initialMarkers}
+          route={route}
+          style={StyleSheet.absoluteFillObject}
+        />
       ) : (
         <View style={styles.waitingBg} />
       )}
@@ -149,7 +116,7 @@ export default function TrackDriverScreen() {
             <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Track Driver</Text>
-          {driverCoord ? (
+          {driverLoc ? (
             <TouchableOpacity style={styles.centreBtn} onPress={centreOnDriver}>
               <Ionicons name="locate" size={20} color={colors.primary} />
             </TouchableOpacity>
@@ -166,7 +133,7 @@ export default function TrackDriverScreen() {
               <View style={styles.waitingDot} />
               <View>
                 <Text style={styles.waitingTitle}>Waiting for driver location</Text>
-                <Text style={styles.waitingSub}>The driver's position will appear once they start moving</Text>
+                <Text style={styles.waitingSub}>Updates once the driver starts moving</Text>
               </View>
             </View>
           ) : (
@@ -179,8 +146,7 @@ export default function TrackDriverScreen() {
                   {tick > -1 ? '' : ''}
                 </Text>
               </View>
-
-              <View style={styles.routeRow}>
+              <View style={styles.routeBlock}>
                 <View style={styles.routeItem}>
                   <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
                   <Text style={styles.routeText} numberOfLines={1}>{job?.pickup.address}</Text>
@@ -191,7 +157,6 @@ export default function TrackDriverScreen() {
                   <Text style={styles.routeText} numberOfLines={1}>{job?.dropoff.address}</Text>
                 </View>
               </View>
-
               {job?.agreedPrice ? (
                 <View style={styles.priceRow}>
                   <Text style={styles.priceLabel}>Agreed price</Text>
@@ -216,9 +181,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', elevation: 4,
   },
   headerTitle: {
     fontSize: 16, fontWeight: '800', color: colors.text,
@@ -227,20 +190,7 @@ const styles = StyleSheet.create({
   },
   centreBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  markerPin: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: colors.white, elevation: 5,
-  },
-  driverMarker: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: colors.white, elevation: 6,
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', elevation: 4,
   },
   cardWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 },
   card: {
@@ -252,14 +202,14 @@ const styles = StyleSheet.create({
   waitingDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.textMuted, marginTop: 4 },
   waitingTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   waitingSub: { fontSize: 13, color: colors.textSecondary, marginTop: 3, lineHeight: 18 },
-  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   liveDot: {
     width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary,
     shadowColor: colors.primary, shadowOpacity: 0.7, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   driverName: { flex: 1, fontSize: 17, fontWeight: '800', color: colors.text },
   updatedAt: { fontSize: 12, color: colors.textMuted },
-  routeRow: { gap: 0 },
+  routeBlock: { gap: 0 },
   routeItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   routeDot: { width: 10, height: 10, borderRadius: 5 },
   routeLine: { width: 2, height: 14, backgroundColor: colors.border, marginLeft: 4, marginVertical: 2 },

@@ -3,26 +3,20 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapboxGL from '@rnmapbox/maps';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Constants from 'expo-constants';
 import { colors } from '../../constants/colors';
 import { listenToOpenJobsNear } from '../../services/jobService';
 import { useAuth } from '../../hooks/useAuth';
 import { Job } from '../../types';
-
-const MAPBOX_TOKEN: string =
-  process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
-  (Constants.expoConfig?.extra as any)?.mapboxToken ?? '';
-
-MapboxGL.setAccessToken(MAPBOX_TOKEN);
+import MapboxWebView from '../../components/MapboxWebView';
+import type WebView from 'react-native-webview';
 
 export default function DemandMapScreen() {
   const nav = useNavigation<any>();
   const { appUser } = useAuth();
-  const cameraRef = useRef<MapboxGL.Camera>(null);
+  const webRef = useRef<WebView>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -34,22 +28,6 @@ export default function DemandMapScreen() {
     return listenToOpenJobsNear(city, data => {
       setJobs(data);
       setLoading(false);
-      if (data.length > 0) {
-        setTimeout(() => {
-          const valid = data
-            .map(j => [j.pickup.coords.longitude, j.pickup.coords.latitude] as [number, number])
-            .filter(([lng, lat]) => lng !== 0 || lat !== 0);
-          if (valid.length === 0) return;
-          const lngs = valid.map(c => c[0]);
-          const lats = valid.map(c => c[1]);
-          cameraRef.current?.fitBounds(
-            [Math.max(...lngs), Math.max(...lats)],
-            [Math.min(...lngs), Math.min(...lats)],
-            { top: 80, right: 60, bottom: 280, left: 60 },
-            600,
-          );
-        }, 600);
-      }
     });
   }, [city]);
 
@@ -57,12 +35,18 @@ export default function DemandMapScreen() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return;
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    cameraRef.current?.setCamera({
-      centerCoordinate: [loc.coords.longitude, loc.coords.latitude],
-      zoomLevel: 13,
-      animationDuration: 500,
-    });
+    webRef.current?.injectJavaScript(
+      `(function(){ map.flyTo({ center:[${loc.coords.longitude},${loc.coords.latitude}], zoom:14, duration:500 }); })(); true;`
+    );
   };
+
+  const markers = jobs.map(job => ({
+    id: job.id,
+    longitude: job.pickup.coords.longitude,
+    latitude: job.pickup.coords.latitude,
+    color: colors.primary,
+    emoji: '📦',
+  }));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -83,29 +67,11 @@ export default function DemandMapScreen() {
         <ActivityIndicator style={{ flex: 1 }} color={colors.primary} size="large" />
       ) : (
         <View style={{ flex: 1 }}>
-          <MapboxGL.MapView
-            style={{ flex: 1 }}
-            styleURL={MapboxGL.StyleURL.Street}
-            onPress={() => setSelectedJob(null)}
-          >
-            <MapboxGL.Camera
-              ref={cameraRef}
-              zoomLevel={11}
-              centerCoordinate={[28.0473, -26.2041]}
-            />
-            {jobs.map(job => (
-              <MapboxGL.PointAnnotation
-                key={job.id}
-                id={job.id}
-                coordinate={[job.pickup.coords.longitude, job.pickup.coords.latitude]}
-                onSelected={() => setSelectedJob(job)}
-              >
-                <View style={styles.markerPin}>
-                  <Ionicons name="cube-outline" size={14} color={colors.white} />
-                </View>
-              </MapboxGL.PointAnnotation>
-            ))}
-          </MapboxGL.MapView>
+          <MapboxWebView
+            center={[28.0473, -26.2041]}
+            zoom={11}
+            markers={markers}
+          />
 
           <View style={styles.legend}>
             <View style={styles.legendDot} />
@@ -114,15 +80,13 @@ export default function DemandMapScreen() {
 
           {selectedJob && (
             <View style={styles.jobCard}>
-              <View style={styles.jobCardRoute}>
-                <View style={styles.routeRow}>
-                  <Ionicons name="radio-button-on" size={13} color={colors.primary} />
-                  <Text style={styles.routeText} numberOfLines={1}>{selectedJob.pickup.address}</Text>
-                </View>
-                <View style={[styles.routeRow, { marginTop: 4 }]}>
-                  <Ionicons name="location" size={13} color={colors.danger} />
-                  <Text style={styles.routeText} numberOfLines={1}>{selectedJob.dropoff.address}</Text>
-                </View>
+              <View style={styles.routeRow}>
+                <Ionicons name="radio-button-on" size={13} color={colors.primary} />
+                <Text style={styles.routeText} numberOfLines={1}>{selectedJob.pickup.address}</Text>
+              </View>
+              <View style={[styles.routeRow, { marginTop: 4 }]}>
+                <Ionicons name="location" size={13} color={colors.danger} />
+                <Text style={styles.routeText} numberOfLines={1}>{selectedJob.dropoff.address}</Text>
               </View>
               {selectedJob.description ? (
                 <Text style={styles.jobDesc} numberOfLines={1}>{selectedJob.description}</Text>
@@ -167,33 +131,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
-  markerPin: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: colors.white,
-    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-  },
   legend: {
     position: 'absolute', top: 14, right: 14,
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.surface, borderRadius: 20,
     paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: colors.border,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderWidth: 1, borderColor: colors.border, elevation: 3,
   },
   legendDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   legendText: { fontSize: 12, fontWeight: '600', color: colors.text },
   jobCard: {
     position: 'absolute', bottom: 24, left: 16, right: 16,
     backgroundColor: colors.surface, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: colors.border, gap: 12,
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    borderWidth: 1, borderColor: colors.border, gap: 12, elevation: 8,
   },
-  jobCardRoute: { gap: 0 },
   routeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   routeText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
   jobDesc: { fontSize: 13, color: colors.textSecondary },
