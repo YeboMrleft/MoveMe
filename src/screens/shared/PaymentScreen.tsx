@@ -24,7 +24,7 @@ export default function PaymentScreen() {
   const { params }   = useRoute<any>();
   const { purpose, referenceId } = params as Params;
 
-  const [html, setHtml]           = useState<string | null>(null);
+  const [html, setHtml]             = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [bypassing, setBypassing]   = useState(false);
@@ -199,8 +199,16 @@ const styles = StyleSheet.create({
     borderRadius: 12, marginTop: 8,
   },
   btnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  walletBtn: {
+    marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.primary, borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 24,
+    width: '100%',
+  },
+  walletBtnTitle: { fontSize: 15, fontWeight: '800', color: colors.white },
+  walletBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
   bypassBtn: {
-    marginTop: 32, paddingVertical: 12, paddingHorizontal: 24,
+    marginTop: 16, paddingVertical: 12, paddingHorizontal: 24,
     borderRadius: 10, borderWidth: 1.5, borderColor: colors.border,
     borderStyle: 'dashed',
   },

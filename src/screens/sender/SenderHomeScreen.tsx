@@ -51,6 +51,7 @@ export default function SenderHomeScreen() {
   const referralCode = uid ? generateReferralCode(uid) : undefined;
 
   useEffect(() => {
+    if (!uid) return;
     return listenToNotifications(uid, items => {
       setUnreadCount(items.filter(i => !i.read).length);
     });

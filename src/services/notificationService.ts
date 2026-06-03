@@ -1,10 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import {
   collection, addDoc, onSnapshot, updateDoc, doc, query, orderBy, limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { getUser, updateUser } from './userService';
+
+// Push notifications are not supported in Expo Go from SDK 53+
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 export interface NotificationItem {
   id: string;
@@ -51,15 +55,21 @@ export const markAllNotificationsRead = async (userId: string, items: Notificati
   );
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+if (!IS_EXPO_GO) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch {}
+}
 
 export const registerForPushNotifications = async (uid: string): Promise<void> => {
+  // Push notifications removed from Expo Go in SDK 53+ — use a dev build
+  if (IS_EXPO_GO) return;
   try {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
@@ -81,7 +91,7 @@ export const registerForPushNotifications = async (uid: string): Promise<void> =
     const token = (await Notifications.getExpoPushTokenAsync()).data;
     await updateUser(uid, { pushToken: token });
   } catch {
-    // Push token unavailable (e.g. simulator, no EAS project) — skip silently
+    // Push token unavailable (simulator, missing EAS config) — skip silently
   }
 };
 

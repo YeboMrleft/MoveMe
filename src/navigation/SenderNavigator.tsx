@@ -20,6 +20,9 @@ import PostMarketplaceItemScreen from '../screens/shared/PostMarketplaceItemScre
 import MarketplaceItemDetailScreen from '../screens/shared/MarketplaceItemDetailScreen';
 import LeaderboardScreen from '../screens/shared/LeaderboardScreen';
 import NotificationsScreen from '../screens/shared/NotificationsScreen';
+import WalletScreen from '../screens/shared/WalletScreen';
+import TopUpScreen from '../screens/shared/TopUpScreen';
+import WithdrawalScreen from '../screens/shared/WithdrawalScreen';
 
 export type SenderStackParams = {
   SenderTabs: undefined;
@@ -34,6 +37,9 @@ export type SenderStackParams = {
   PostMarketplaceItem: undefined;
   Leaderboard: undefined;
   Notifications: undefined;
+  Wallet: undefined;
+  TopUp: undefined;
+  Withdrawal: undefined;
 };
 
 const Stack = createStackNavigator<SenderStackParams>();
@@ -83,6 +89,9 @@ export default function SenderNavigator() {
       <Stack.Screen name="PostMarketplaceItem" component={PostMarketplaceItemScreen} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Wallet" component={WalletScreen} />
+      <Stack.Screen name="TopUp" component={TopUpScreen} />
+      <Stack.Screen name="Withdrawal" component={WithdrawalScreen} />
     </Stack.Navigator>
   );
 }

@@ -5,7 +5,8 @@ import Constants from 'expo-constants';
 
 const TOKEN: string =
   process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
-  (Constants.expoConfig?.extra as any)?.mapboxToken ?? '';
+  (Constants.expoConfig?.extra as any)?.mapboxToken ??
+  '';
 
 export interface MapMarker {
   id: string;

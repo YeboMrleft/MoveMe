@@ -13,40 +13,89 @@ import { Job } from '../../types';
 import MapboxWebView from '../../components/MapboxWebView';
 import type WebView from 'react-native-webview';
 
+// SA city fallback centres [lng, lat]
+const CITY_CENTRES: Record<string, [number, number]> = {
+  'Johannesburg': [28.0473, -26.2041],
+  'Cape Town':    [18.4241, -33.9249],
+  'Durban':       [31.0218, -29.8587],
+  'Pretoria':     [28.1871, -25.7461],
+  'Port Elizabeth': [25.6022, -33.9608],
+};
+
 export default function DemandMapScreen() {
   const nav = useNavigation<any>();
   const { appUser } = useAuth();
   const webRef = useRef<WebView>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [driverCenter, setDriverCenter] = useState<[number, number] | null>(null);
+  const [locError, setLocError] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const city = appUser?.serviceCity ?? '';
 
+  // Get driver's current location on mount
   useEffect(() => {
-    if (!city) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setLocError(true); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!cancelled) setDriverCenter([loc.coords.longitude, loc.coords.latitude]);
+      } catch {
+        if (!cancelled) setLocError(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!city) { setJobsLoading(false); return; }
     return listenToOpenJobsNear(city, data => {
       setJobs(data);
-      setLoading(false);
+      setJobsLoading(false);
     });
   }, [city]);
 
   const locateMe = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return;
-    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    webRef.current?.injectJavaScript(
-      `(function(){ map.flyTo({ center:[${loc.coords.longitude},${loc.coords.latitude}], zoom:14, duration:500 }); })(); true;`
-    );
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { longitude: lng, latitude: lat } = loc.coords;
+      setDriverCenter([lng, lat]);
+      webRef.current?.injectJavaScript(
+        `(function(){ map.flyTo({ center:[${lng},${lat}], zoom:14, duration:500 }); })(); true;`
+      );
+    } catch {}
   };
 
-  const markers = jobs.map(job => ({
-    id: job.id,
-    longitude: job.pickup.coords.longitude,
-    latitude: job.pickup.coords.latitude,
-    color: colors.primary,
-    emoji: '📦',
-  }));
+  // City fallback if GPS denied
+  const fallbackCenter = CITY_CENTRES[city] ?? [28.0473, -26.2041];
+  const mapCenter = driverCenter ?? (locError ? fallbackCenter : null);
+
+  // Job pickup markers
+  const markers = [
+    // Driver's own location — shown as a distinct marker
+    ...(driverCenter ? [{
+      id: '__driver__',
+      longitude: driverCenter[0],
+      latitude: driverCenter[1],
+      color: '#1E40AF',
+      emoji: '🚚',
+    }] : []),
+    // Open job markers
+    ...jobs.map(job => ({
+      id: job.id,
+      longitude: job.pickup.coords.longitude,
+      latitude: job.pickup.coords.latitude,
+      color: colors.primary,
+      emoji: '📦',
+    })),
+  ];
+
+  const loading = jobsLoading || !mapCenter;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -64,18 +113,25 @@ export default function DemandMapScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} color={colors.primary} size="large" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>
+            {!mapCenter ? 'Getting your location…' : 'Loading jobs…'}
+          </Text>
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
           <MapboxWebView
-            center={[28.0473, -26.2041]}
-            zoom={11}
+            center={mapCenter!}
+            zoom={13}
             markers={markers}
           />
 
           <View style={styles.legend}>
-            <View style={styles.legendDot} />
-            <Text style={styles.legendText}>Pickup location</Text>
+            <View style={[styles.legendDot, { backgroundColor: '#1E40AF' }]} />
+            <Text style={styles.legendText}>You</Text>
+            <View style={[styles.legendDot, { backgroundColor: colors.primary, marginLeft: 8 }]} />
+            <Text style={styles.legendText}>Pickup</Text>
           </View>
 
           {selectedJob && (
@@ -119,6 +175,8 @@ export default function DemandMapScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: colors.textSecondary },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,

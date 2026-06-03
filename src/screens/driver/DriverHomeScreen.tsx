@@ -45,6 +45,7 @@ export default function DriverHomeScreen() {
   const uid = getAuth().currentUser?.uid ?? '';
 
   useEffect(() => {
+    if (!uid) return;
     return listenToNotifications(uid, items => {
       setUnreadCount(items.filter(i => !i.read).length);
     });
@@ -108,7 +109,9 @@ export default function DriverHomeScreen() {
             <View style={styles.activePulse} />
             <View>
               <Text style={styles.activeBannerTitle}>
-                {activeJob.status === 'accepted' ? 'Job accepted — head to pickup' : 'Trip in progress'}
+                {activeJob.status === 'accepted' ? 'Job accepted — head to pickup'
+                  : activeJob.status === 'arrived' ? 'At pickup — waiting for payment'
+                  : 'Trip in progress'}
               </Text>
               <Text style={styles.activeBannerSub} numberOfLines={1}>
                 {activeJob.pickup.address} → {activeJob.dropoff.address}

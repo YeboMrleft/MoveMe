@@ -25,7 +25,7 @@ import { uploadPhoto } from '../../services/storageService';
 import { formatScheduledTime } from '../../utils/formatSchedule';
 import { JobTemplate } from '../../types';
 import { JOB_CATEGORIES, JobCategory } from '../../constants/categories';
-import { LoadWeight } from '../../services/distanceService';
+import { LoadWeight, getRouteDistance, RouteInfo } from '../../services/distanceService';
 import { SenderStackParams } from '../../navigation/SenderNavigator';
 
 type Nav = StackNavigationProp<SenderStackParams, 'PostJob'>;
@@ -50,8 +50,16 @@ export default function PostJobScreen() {
   const [templateName, setTemplateName] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [loadWeight, setLoadWeight] = useState<LoadWeight>('medium');
+  const [priceEstimate, setPriceEstimate] = useState<RouteInfo | null>(null);
 
   const { appUser } = useAuth();
+
+  useEffect(() => {
+    if (!pickupCoords.latitude || !dropoffCoords.latitude) { setPriceEstimate(null); return; }
+    getRouteDistance(pickupCoords, dropoffCoords, loadWeight).then(info => {
+      setPriceEstimate(info);
+    }).catch(() => {});
+  }, [pickupCoords.latitude, pickupCoords.longitude, dropoffCoords.latitude, dropoffCoords.longitude, loadWeight]);
   const pickupRef = useRef<GooglePlacesAutocompleteRef>(null);
   const dropoffRef = useRef<GooglePlacesAutocompleteRef>(null);
 
@@ -298,6 +306,22 @@ export default function PostJobScreen() {
           ))}
         </View>
 
+        {/* Price estimate */}
+        {priceEstimate && (
+          <View style={styles.estimateCard}>
+            <View style={styles.estimateRow}>
+              <Ionicons name="cash-outline" size={18} color={colors.primary} />
+              <Text style={styles.estimateLabel}>Estimated driver price</Text>
+            </View>
+            <Text style={styles.estimateRange}>
+              R{priceEstimate.suggestedMin} – R{priceEstimate.suggestedMax}
+            </Text>
+            <Text style={styles.estimateSub}>
+              {priceEstimate.distanceKm} km · ~{priceEstimate.durationMin} min · drivers set their own price
+            </Text>
+          </View>
+        )}
+
         <Input
           label="Describe your items"
           value={description}
@@ -462,6 +486,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
   },
   catRow: { gap: 8, paddingBottom: 16 },
+  estimateCard: {
+    backgroundColor: colors.primary + '0D', borderRadius: 14,
+    padding: 14, borderWidth: 1, borderColor: colors.primary + '30',
+    marginBottom: 16, gap: 4,
+  },
+  estimateRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  estimateLabel: { fontSize: 12, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  estimateRange: { fontSize: 26, fontWeight: '900', color: colors.text },
+  estimateSub: { fontSize: 12, color: colors.textSecondary },
   weightRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   weightChip: {
     flex: 1, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border,

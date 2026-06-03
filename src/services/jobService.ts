@@ -22,6 +22,18 @@ export const updateJobDriverLocation = (jobId: string, latitude: number, longitu
     driverLocation: { latitude, longitude, updatedAt: Date.now() },
   });
 
+export const markArrived = (jobId: string) =>
+  updateDoc(doc(db, 'jobs', jobId), { status: 'arrived' });
+
+export const startTrip = (jobId: string) =>
+  updateDoc(doc(db, 'jobs', jobId), { status: 'in_progress', paymentMethod: 'cash' });
+
+export const confirmCashPayment = (jobId: string) =>
+  updateDoc(doc(db, 'jobs', jobId), {
+    cashConfirmedBySender: true,
+    cashConfirmedAt: Date.now(),
+  });
+
 export const listenToJob = (jobId: string, cb: (job: Job) => void) =>
   onSnapshot(doc(db, 'jobs', jobId), snap => {
     if (snap.exists()) cb({ id: snap.id, ...snap.data() } as Job);
@@ -70,6 +82,15 @@ export const createConversation = async (data: Omit<Conversation, 'id' | 'create
 export const updateConversation = (convId: string, data: Partial<Conversation>) =>
   updateDoc(doc(db, 'conversations', convId), data);
 
+export const archiveJobConversations = async (jobId: string) => {
+  const snap = await getDocs(
+    query(collection(db, 'conversations'), where('jobId', '==', jobId))
+  );
+  await Promise.all(
+    snap.docs.map(d => updateDoc(d.ref, { status: 'completed' }))
+  );
+};
+
 export const listenToJobConversations = (jobId: string, cb: (convs: Conversation[]) => void) => {
   const q = query(
     collection(db, 'conversations'),
@@ -108,7 +129,7 @@ export const listenToDriverActiveJob = (driverId: string, cb: (job: Job | null) 
   const q = query(
     collection(db, 'jobs'),
     where('acceptedDriverId', '==', driverId),
-    where('status', 'in', ['accepted', 'in_progress']),
+    where('status', 'in', ['accepted', 'arrived', 'in_progress']),
   );
   return onSnapshot(q, snap => {
     cb(snap.empty ? null : ({ id: snap.docs[0].id, ...snap.docs[0].data() } as Job));

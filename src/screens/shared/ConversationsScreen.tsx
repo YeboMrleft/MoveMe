@@ -34,9 +34,10 @@ export default function ConversationsScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!uid) return;
     const listen = isDriver ? listenToDriverConversations : listenToUserConversations;
     const unsub = listen(uid, data => {
-      setConvs(data);
+      setConvs(data.filter(c => c.status !== 'completed'));
       setLoading(false);
     });
     return unsub;

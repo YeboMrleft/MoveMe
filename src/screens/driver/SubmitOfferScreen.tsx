@@ -1,17 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { getAuth } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import { listenToJob } from '../../services/jobService';
 import { submitOffer, hasDriverSubmittedOffer } from '../../services/offerService';
-import { consumePaymentResult } from '../../services/paymentResultStore';
+import { listenToWallet } from '../../services/walletService';
 import { sendPushNotification } from '../../services/notificationService';
 import { getRouteDistance, RouteInfo } from '../../services/distanceService';
 import { Job } from '../../types';
@@ -36,7 +36,13 @@ export default function SubmitOfferScreen() {
   const [loadingJob, setLoadingJob] = useState(true);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const uid = getAuth().currentUser?.uid ?? '';
+
+  useEffect(() => {
+    if (!uid) return;
+    return listenToWallet(uid, w => setWalletBalance(w?.balance ?? 0));
+  }, [uid]);
 
   useEffect(() => {
     const unsub = listenToJob(jobId, j => {
@@ -55,20 +61,22 @@ export default function SubmitOfferScreen() {
     return unsub;
   }, [jobId, uid]);
 
-  // Auto-submit when returning from PaymentScreen
-  useFocusEffect(
-    useCallback(() => {
-      const result = consumePaymentResult();
-      if (result) {
-        submitAfterPayment(price, note);
-      }
-    }, [price, note]),
-  );
+  const handleSubmit = async () => {
+    const parsed = parseFloat(price);
+    if (!price || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid price', 'Enter a valid amount in rands.');
+      return;
+    }
+    if (!appUser) return;
 
-  const submitAfterPayment = async (priceStr: string, noteStr: string) => {
-    if (!appUser || loading) return;
-    const parsed = parseFloat(priceStr);
-    if (!priceStr || isNaN(parsed) || parsed <= 0) return;
+    if (appUser.verificationStatus === 'rejected') {
+      Alert.alert(
+        'Verification rejected',
+        'Your identity verification was not successful. Please contact support or re-submit your documents.'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       await submitOffer({
@@ -80,7 +88,7 @@ export default function SubmitOfferScreen() {
         registrationNumber: appUser.registrationNumber,
         verificationStatus: appUser.verificationStatus,
         price: parsed,
-        note: noteStr.trim() || undefined,
+        note: note.trim() || undefined,
       });
       if (job?.posterId) {
         sendPushNotification(
@@ -100,31 +108,6 @@ export default function SubmitOfferScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmit = async () => {
-    const parsed = parseFloat(price);
-    if (!price || isNaN(parsed) || parsed <= 0) {
-      Alert.alert('Invalid price', 'Enter a valid amount in rands.');
-      return;
-    }
-    if (!appUser) return;
-
-    if (appUser.verificationStatus === 'rejected') {
-      Alert.alert(
-        'Verification rejected',
-        'Your identity verification was not successful. Please contact support or re-submit your documents.'
-      );
-      return;
-    }
-
-    // Navigate to payment — returns here with paymentComplete: true
-    nav.navigate('Payment', {
-      purpose: 'driver_offer',
-      referenceId: jobId,
-      returnTo: 'SubmitOffer',
-      extra: { jobId, priceValue: price, noteValue: note },
-    });
   };
 
   if (loadingJob) {
@@ -234,8 +217,42 @@ export default function SubmitOfferScreen() {
           </View>
         </View>
 
+        {/* Wallet balance / commission warning */}
+        {walletBalance !== null && walletBalance < 30 && (
+          <View style={styles.walletWarnBox}>
+            <Ionicons name="wallet-outline" size={18} color="#F59E0B" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.walletWarnTitle}>
+                {walletBalance === 0 ? 'No wallet balance' : `Low wallet balance — R${walletBalance.toFixed(2)}`}
+              </Text>
+              <Text style={styles.walletWarnText}>
+                Move-Me charges 12% commission after each trip. Add funds to your wallet so cash job commissions can be collected automatically.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.feeBox}>
+          <Text style={styles.feeTitle}>Move-Me Commission</Text>
+          <View style={styles.feeRow}>
+            <Ionicons name="wallet-outline" size={16} color={colors.primary} />
+            <Text style={styles.feeText}>
+              <Text style={styles.feeBold}>12%</Text> of the agreed price on every completed job
+            </Text>
+          </View>
+          <View style={styles.feeRow}>
+            <Ionicons name="cash-outline" size={16} color="#F59E0B" />
+            <Text style={styles.feeText}>
+              In-app: deducted from payment · Cash: charged to your wallet
+            </Text>
+          </View>
+          <Text style={styles.feeNote}>
+            No upfront fee. You only pay when you earn. Submitting offers is free.
+          </Text>
+        </View>
+
         <Button
-          label={alreadySubmitted ? 'Update Offer — Pay R10' : 'Submit Offer — Pay R10'}
+          label={alreadySubmitted ? 'Update Offer' : 'Submit Offer'}
           onPress={handleSubmit}
           loading={loading}
           style={styles.mt}
@@ -293,4 +310,21 @@ const styles = StyleSheet.create({
   howDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
   howText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   mt: { marginTop: 20, marginBottom: 32 },
+  walletWarnBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#FDE68A', marginTop: 12,
+  },
+  walletWarnTitle: { fontSize: 13, fontWeight: '800', color: '#92400E', marginBottom: 2 },
+  walletWarnText: { fontSize: 12, color: '#78350F', lineHeight: 16 },
+  feeBox: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
+    marginTop: 12, gap: 8,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  feeTitle: { fontSize: 12, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  feeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  feeText: { fontSize: 13, color: colors.textSecondary },
+  feeBold: { fontWeight: '800', color: colors.text },
+  feeNote: { fontSize: 11, color: colors.textMuted, lineHeight: 15, marginTop: 2 },
 });

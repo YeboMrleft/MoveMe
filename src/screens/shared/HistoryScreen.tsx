@@ -40,6 +40,7 @@ export default function HistoryScreen() {
   const isDriver = appUser?.role === 'driver';
 
   useEffect(() => {
+    if (!uid) return;
     if (isDriver) {
       return listenToDriverJobHistory(uid, data => {
         setJobs(data);

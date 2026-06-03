@@ -4,6 +4,7 @@ export type JobStatus =
   | 'open'
   | 'reviewing'      // top 3 selected, waiting for user to pick
   | 'accepted'
+  | 'arrived'        // driver has arrived at pickup, waiting for sender payment
   | 'in_progress'
   | 'completed'
   | 'cancelled';
@@ -49,6 +50,12 @@ export interface User {
   isOnline?: boolean;
   serviceCity?: string;
   currentLocation?: { latitude: number; longitude: number };
+  bankDetails?: {
+    bank: string;
+    accountHolder: string;
+    accountNumber: string;
+    accountType: 'cheque' | 'savings';
+  };
   // verification
   verificationStatus?: VerificationStatus;
   idNumber?: string;
@@ -75,6 +82,7 @@ export interface Job {
   when: 'now' | number;
   status: JobStatus;
   loadPhotoUrl?: string;
+  weightCategory?: 'light' | 'medium' | 'heavy';
   offersCount?: number;
   topOfferIds?: string[];          // IDs of top 3 scored offers
   acceptedDriverId?: string;
@@ -83,6 +91,15 @@ export interface Job {
   senderRated?: boolean;
   driverRated?: boolean;
   driverLocation?: { latitude: number; longitude: number; updatedAt: number };
+  pickupPhotoUrl?: string;
+  deliveryPhotoUrl?: string;
+  cashConfirmedBySender?: boolean;
+  cashConfirmedAt?: number;
+  walletSettled?: boolean;
+  walletSettledAt?: number;
+  paymentMethod?: 'wallet' | 'cash';
+  discountApplied?: boolean;
+  paidAmount?: number;
   createdAt: number;
 }
 
@@ -110,7 +127,7 @@ export interface Conversation {
   driverName: string;
   userName: string;
   quotedPrice?: number;
-  status: 'active' | 'accepted' | 'declined';
+  status: 'active' | 'accepted' | 'declined' | 'completed';
   lastMessage?: string;
   lastMessageAt?: number;
   createdAt: number;
@@ -152,6 +169,33 @@ export interface JobTemplate {
   dropoffAddress: string;
   dropoffCoords: { latitude: number; longitude: number };
   description?: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  type: 'topup' | 'job_payment' | 'job_earning' | 'platform_fee' | 'withdrawal' | 'refund';
+  amount: number; // positive = credit, negative = debit
+  description: string;
+  jobId?: string;
+  status: 'completed' | 'pending' | 'failed';
+  createdAt: number;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  uid: string;
+  driverName: string;
+  amount: number;
+  bankDetails: {
+    bank: string;
+    accountHolder: string;
+    accountNumber: string;
+    accountType: 'cheque' | 'savings';
+  };
+  status: 'pending' | 'processed' | 'rejected';
+  note?: string;
+  createdAt: number;
+  processedAt?: number;
 }
 
 export interface Rating {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image, Switch,
-  Alert, ScrollView, ActivityIndicator, Linking,
+  Alert, ScrollView, ActivityIndicator, Linking, TextInput, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
@@ -19,6 +19,12 @@ import { uploadPhoto } from '../../services/storageService';
 import { getAuth } from 'firebase/auth';
 import TierBadge from '../../components/TierBadge';
 import { getDriverTier, getNextTier, TIER_DEFS } from '../../utils/driverTier';
+import { listenToWallet } from '../../services/walletService';
+
+const SA_BANKS = [
+  'Absa', 'Capitec', 'FNB', 'Nedbank', 'Standard Bank',
+  'TymeBank', 'African Bank', 'Bidvest', 'Discovery Bank', 'Investec',
+];
 
 const APP_VERSION = '1.0.0';
 const SUPPORT_EMAIL = 'support@move-me.co.za';
@@ -48,10 +54,24 @@ export default function ProfileScreen() {
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingVehicle, setUploadingVehicle] = useState(false);
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const [bankForm, setBankForm] = useState({
+    bank: appUser?.bankDetails?.bank ?? '',
+    accountHolder: appUser?.bankDetails?.accountHolder ?? '',
+    accountNumber: appUser?.bankDetails?.accountNumber ?? '',
+    accountType: (appUser?.bankDetails?.accountType ?? 'cheque') as 'cheque' | 'savings',
+  });
+  const [savingBank, setSavingBank] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const uid = getAuth().currentUser?.uid ?? '';
+
+  useEffect(() => {
+    if (!uid) return;
+    return listenToWallet(uid, w => setWalletBalance(w?.balance ?? null));
+  }, [uid]);
 
   if (!appUser) return null;
-
-  const uid = getAuth().currentUser?.uid ?? '';
   const isDriver = appUser.role === 'driver';
   const driverTier = isDriver ? getDriverTier(appUser.totalTrips ?? 0, appUser.rating) : null;
   const nextTier = driverTier ? getNextTier(driverTier) : null;
@@ -170,6 +190,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleSaveBank = async () => {
+    if (!bankForm.bank || !bankForm.accountHolder.trim() || !bankForm.accountNumber.trim()) {
+      Alert.alert('Required fields', 'Please fill in all bank details.');
+      return;
+    }
+    setSavingBank(true);
+    try {
+      await updateUser(uid, { bankDetails: bankForm });
+      setBankModalOpen(false);
+      Alert.alert('Saved', 'Your payout details have been saved.');
+    } catch {
+      Alert.alert('Error', 'Could not save bank details. Please try again.');
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -222,6 +259,26 @@ export default function ProfileScreen() {
             <Text style={styles.noRating}>No ratings yet</Text>
           )}
         </View>
+
+        {/* ── Wallet card ── */}
+        <TouchableOpacity
+          style={styles.walletCard}
+          onPress={() => (nav as any).navigate('Wallet')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.walletLeft}>
+            <Ionicons name="wallet-outline" size={22} color={colors.white} />
+            <View>
+              <Text style={styles.walletLabel}>Move-Me Wallet</Text>
+              <Text style={styles.walletBalance}>
+                {walletBalance !== null
+                  ? `R ${walletBalance.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`
+                  : 'Tap to open'}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+        </TouchableOpacity>
 
         {/* ── Stats ── */}
         <View style={styles.statsRow}>
@@ -482,6 +539,46 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* ── Driver: payout details ── */}
+        {isDriver && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Payout Details</Text>
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={() => {
+                setBankForm({
+                  bank: appUser.bankDetails?.bank ?? '',
+                  accountHolder: appUser.bankDetails?.accountHolder ?? '',
+                  accountNumber: appUser.bankDetails?.accountNumber ?? '',
+                  accountType: appUser.bankDetails?.accountType ?? 'cheque',
+                });
+                setBankModalOpen(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="card-outline" size={18} color={colors.textMuted} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Bank account</Text>
+                {appUser.bankDetails?.bank ? (
+                  <Text style={styles.infoValue}>
+                    {appUser.bankDetails.bank} · ****{appUser.bankDetails.accountNumber.slice(-4)}
+                  </Text>
+                ) : (
+                  <Text style={[styles.infoValue, styles.placeholder]}>Tap to add</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.border} />
+            </TouchableOpacity>
+            <View style={styles.rowDivider} />
+            <View style={[styles.infoRow, { paddingVertical: 10 }]}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+              <Text style={[styles.infoLabel, { flex: 1, lineHeight: 16 }]}>
+                Your bank details are stored securely and will be used for future automated payouts.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ── Referral ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Invite friends</Text>
@@ -544,6 +641,82 @@ export default function ProfileScreen() {
 
       </ScrollView>
 
+      {/* Bank details modal */}
+      <Modal visible={bankModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setBankModalOpen(false)}>
+        <SafeAreaView style={styles.safe}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setBankModalOpen(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Payout Details</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            <Text style={styles.bankFieldLabel}>Bank</Text>
+            <TouchableOpacity style={styles.bankPickerBtn} onPress={() => setBankPickerOpen(v => !v)} activeOpacity={0.8}>
+              <Text style={[styles.bankPickerText, !bankForm.bank && styles.placeholder]}>
+                {bankForm.bank || 'Select your bank'}
+              </Text>
+              <Ionicons name={bankPickerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+            {bankPickerOpen && (
+              <View style={styles.bankList}>
+                {SA_BANKS.map(b => (
+                  <TouchableOpacity
+                    key={b}
+                    style={[styles.bankListItem, bankForm.bank === b && styles.bankListItemActive]}
+                    onPress={() => { setBankForm(f => ({ ...f, bank: b })); setBankPickerOpen(false); }}
+                  >
+                    <Text style={[styles.bankListItemText, bankForm.bank === b && { color: colors.primary }]}>{b}</Text>
+                    {bankForm.bank === b && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={styles.bankFieldLabel}>Account holder name</Text>
+            <TextInput
+              style={styles.bankInput}
+              value={bankForm.accountHolder}
+              onChangeText={v => setBankForm(f => ({ ...f, accountHolder: v }))}
+              placeholder="Full name as on bank card"
+              placeholderTextColor={colors.textMuted}
+            />
+
+            <Text style={styles.bankFieldLabel}>Account number</Text>
+            <TextInput
+              style={styles.bankInput}
+              value={bankForm.accountNumber}
+              onChangeText={v => setBankForm(f => ({ ...f, accountNumber: v.replace(/\D/g, '') }))}
+              placeholder="Enter account number"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="numeric"
+            />
+
+            <Text style={styles.bankFieldLabel}>Account type</Text>
+            <View style={styles.accountTypeRow}>
+              {(['cheque', 'savings'] as const).map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.accountTypeBtn, bankForm.accountType === t && styles.accountTypeBtnActive]}
+                  onPress={() => setBankForm(f => ({ ...f, accountType: t }))}
+                >
+                  <Text style={[styles.accountTypeBtnText, bankForm.accountType === t && { color: colors.primary }]}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.saveBankBtn} onPress={handleSaveBank} disabled={savingBank} activeOpacity={0.85}>
+              {savingBank
+                ? <ActivityIndicator color={colors.white} />
+                : <Text style={styles.saveBankBtnText}>Save Details</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
       <CityPickerModal
         visible={cityPickerOpen}
         selected={appUser.serviceCity ?? ''}
@@ -595,6 +768,18 @@ const styles = StyleSheet.create({
   ratingNum: { fontSize: 16, fontWeight: '800', color: colors.text },
   ratingTotal: { fontSize: 14, color: colors.textMuted },
   noRating: { fontSize: 14, color: colors.textMuted },
+
+  // Wallet card
+  walletCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 16, marginBottom: 16,
+    backgroundColor: colors.primary, borderRadius: 16, padding: 18,
+    shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  walletLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  walletLabel: { fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: '600', letterSpacing: 0.4 },
+  walletBalance: { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
 
   // Stats
   statsRow: {
@@ -716,6 +901,53 @@ const styles = StyleSheet.create({
     paddingVertical: 16, borderWidth: 1, borderColor: colors.danger + '40',
   },
   signOutText: { fontSize: 15, fontWeight: '700', color: colors.danger },
+
+  // Bank modal
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  modalBody: { padding: 20, gap: 6, paddingBottom: 40 },
+  bankFieldLabel: {
+    fontSize: 11, fontWeight: '700', color: colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 14, marginBottom: 6,
+  },
+  bankInput: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13,
+    fontSize: 15, color: colors.text,
+  },
+  bankPickerBtn: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  bankPickerText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  bankList: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, overflow: 'hidden', marginTop: 4,
+  },
+  bankListItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderBottomWidth: 1, borderBottomColor: colors.divider,
+  },
+  bankListItemActive: { backgroundColor: colors.primary + '0A' },
+  bankListItemText: { fontSize: 15, color: colors.text, fontWeight: '500' },
+  accountTypeRow: { flexDirection: 'row', gap: 10 },
+  accountTypeBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  accountTypeBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '0A' },
+  accountTypeBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  saveBankBtn: {
+    backgroundColor: colors.primary, borderRadius: 14,
+    paddingVertical: 16, alignItems: 'center', marginTop: 24,
+  },
+  saveBankBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
 
   // Footer
   footer: {

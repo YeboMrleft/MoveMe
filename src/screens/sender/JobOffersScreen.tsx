@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
   TouchableOpacity, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
@@ -20,7 +20,6 @@ import { SenderStackParams } from '../../navigation/SenderNavigator';
 import { getAuth } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
 import WaitingForDriverAnimation from '../../components/WaitingForDriverAnimation';
-import { consumePaymentResult } from '../../services/paymentResultStore';
 import { sendPushNotification } from '../../services/notificationService';
 import { addFavouriteDriver, removeFavouriteDriver } from '../../services/userService';
 
@@ -46,23 +45,12 @@ export default function JobOffersScreen() {
   const [allOffers, setAllOffers] = useState<DriverOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
-  const [pendingOffer, setPendingOffer] = useState<DriverOffer | null>(null);
 
   useEffect(() => {
     const u1 = listenToJob(jobId, j => { setJob(j); setLoading(false); });
     const u2 = listenToJobOffers(jobId, setAllOffers);
     return () => { u1(); u2(); };
   }, [jobId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      const result = consumePaymentResult();
-      if (result && pendingOffer) {
-        doAccept(pendingOffer);
-        setPendingOffer(null);
-      }
-    }, [pendingOffer]),
-  );
 
   const top3 = scoreAndSelectTop3(allOffers);
   const totalDrivers = allOffers.length;
@@ -103,23 +91,13 @@ export default function JobOffersScreen() {
   };
 
   const handleAccept = (offer: DriverOffer) => {
+    const driverGets = Math.round(offer.price * 0.88);
     Alert.alert(
       'Accept this driver?',
-      `${offer.driverName} — R${offer.price}${offer.note ? `\n"${offer.note}"` : ''}\n\nA R10 platform fee applies.`,
+      `${offer.driverName} — R${offer.price}${offer.note ? `\n"${offer.note}"` : ''}\n\n💳 Pay in-app on arrival: driver gets R${driverGets} (88%) instantly\n💵 Pay cash: driver pays 12% commission from their wallet\n\nNo upfront fee to book.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay R10 & Accept',
-          onPress: () => {
-            setPendingOffer(offer);
-            nav.navigate('Payment', {
-              purpose: 'sender_accept',
-              referenceId: jobId,
-              returnTo: 'JobOffers',
-              extra: { jobId },
-            });
-          },
-        },
+        { text: 'Accept Driver', onPress: () => doAccept(offer) },
       ]
     );
   };
@@ -269,6 +247,16 @@ export default function JobOffersScreen() {
               </View>
             ) : null}
 
+            {/* Commission info */}
+            <View style={styles.discountBanner}>
+              <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
+              <Text style={styles.discountBannerText}>
+                Pay in-app on arrival → driver gets{' '}
+                <Text style={styles.discountBannerBold}>R{Math.round(item.price * 0.88)}</Text>
+                {' '}instantly. Move-Me keeps 12%.
+              </Text>
+            </View>
+
             <View style={styles.offerActions}>
               <Button
                 label="Chat"
@@ -329,10 +317,10 @@ const styles = StyleSheet.create({
   },
   bestText: { fontSize: 11, fontWeight: '800', color: colors.black },
 
-  offerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  offerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   driverPhoto: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: colors.border },
   driverInfo: { flex: 1, gap: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   driverName: { fontSize: 16, fontWeight: '800', color: colors.text },
   verifiedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
@@ -341,8 +329,8 @@ const styles = StyleSheet.create({
   verifiedText: { fontSize: 10, fontWeight: '700', color: colors.white },
   ratingNum: { fontSize: 12, color: colors.textSecondary },
   regNum: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  priceCol: { alignItems: 'center', gap: 6 },
-  price: { fontSize: 28, fontWeight: '900', color: colors.primary },
+  priceCol: { alignItems: 'center', gap: 6, paddingTop: 2 },
+  price: { fontSize: 26, fontWeight: '900', color: colors.primary },
   favBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#FFF0F3', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
@@ -355,6 +343,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt, borderRadius: 8, padding: 10,
   },
   noteText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontStyle: 'italic', lineHeight: 18 },
+
+  discountBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary + '0D', borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: colors.primary + '25',
+  },
+  discountBannerText: { flex: 1, fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
+  discountBannerBold: { fontWeight: '800', color: colors.primary },
 
   offerActions: { flexDirection: 'row', gap: 10 },
   chatBtn: { flex: 1 },

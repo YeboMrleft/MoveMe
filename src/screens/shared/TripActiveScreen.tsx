@@ -1,20 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, Linking,
+  View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, Linking, Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
-import { listenToJob, updateJobStatus, createConversation, updateJobDriverLocation } from '../../services/jobService';
+import { listenToJob, updateJobStatus, markArrived, startTrip, createConversation, updateJobDriverLocation, confirmCashPayment, archiveJobConversations } from '../../services/jobService';
+import { listenToWallet, settleJobFromWallet, chargeDriverCommission, cancelJobWithFee } from '../../services/walletService';
 import { sendPushNotification } from '../../services/notificationService';
 import { incrementTotalEarned, addFavouriteDriver, removeFavouriteDriver } from '../../services/userService';
+import { uploadPhoto } from '../../services/storageService';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Job } from '../../types';
 import Button from '../../components/Button';
+import DriverNavMap from '../../components/DriverNavMap';
 import { useAuth } from '../../hooks/useAuth';
 import { Share } from 'react-native';
 
@@ -38,16 +42,18 @@ const openNavigation = (lat: number, lng: number, label: string) => {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  accepted: 'Driver on the way',
+  accepted:    'Driver on the way',
+  arrived:     'Driver has arrived',
   in_progress: 'Trip in progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  completed:   'Completed',
+  cancelled:   'Cancelled',
 };
 const STATUS_COLOR: Record<string, string> = {
-  accepted: colors.primary,
+  accepted:    colors.primary,
+  arrived:     '#F59E0B',
   in_progress: colors.primary,
-  completed: colors.completed,
-  cancelled: colors.cancelled,
+  completed:   colors.completed,
+  cancelled:   colors.cancelled,
 };
 
 export default function TripActiveScreen() {
@@ -56,6 +62,12 @@ export default function TripActiveScreen() {
   const { jobId } = params;
   const { appUser } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
+  const [driverPos, setDriverPos] = useState<{ latitude: number; longitude: number; heading?: number } | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [settlingWallet, setSettlingWallet] = useState(false);
+  const [pickupPhotoUri, setPickupPhotoUri] = useState<string | null>(null);
+  const [deliveryPhotoUri, setDeliveryPhotoUri] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const isDriver = appUser?.role === 'driver';
   const uid = getAuth().currentUser?.uid ?? '';
   const locationWatcher = useRef<Location.LocationSubscription | null>(null);
@@ -68,7 +80,7 @@ export default function TripActiveScreen() {
   // Driver: start sharing GPS as soon as trip is live (runs once per live status)
   useEffect(() => {
     if (!isDriver || !job) return;
-    const isLive = ['accepted', 'in_progress'].includes(job.status);
+    const isLive = ['accepted', 'arrived', 'in_progress'].includes(job.status);
     if (!isLive || watchingJobId.current === jobId) return; // already watching this job
 
     watchingJobId.current = jobId;
@@ -90,12 +102,16 @@ export default function TripActiveScreen() {
           accuracy: Location.Accuracy.Balanced,
         });
         updateJobDriverLocation(jobId, initial.coords.latitude, initial.coords.longitude);
+        setDriverPos({ latitude: initial.coords.latitude, longitude: initial.coords.longitude, heading: initial.coords.heading ?? undefined });
       } catch {}
 
       // Then keep updating as the driver moves
       locationWatcher.current = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, distanceInterval: 10, timeInterval: 8000 },
-        loc => updateJobDriverLocation(jobId, loc.coords.latitude, loc.coords.longitude)
+        loc => {
+          updateJobDriverLocation(jobId, loc.coords.latitude, loc.coords.longitude);
+          setDriverPos({ latitude: loc.coords.latitude, longitude: loc.coords.longitude, heading: loc.coords.heading ?? undefined });
+        }
       );
     })();
   }, [isDriver, job?.status, jobId]);
@@ -109,13 +125,51 @@ export default function TripActiveScreen() {
     };
   }, []);
 
-  const handleStartTrip = () => {
-    Alert.alert('Start trip?', 'Confirm that you have collected the goods and are on your way.', [
+  // Sender: listen to wallet balance for wallet payment option
+  useEffect(() => {
+    if (isDriver || !uid) return;
+    return listenToWallet(uid, w => setWalletBalance(w?.balance ?? 0));
+  }, [isDriver, uid]);
+
+  const takePhoto = async (): Promise<string | null> => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Camera needed', 'Please allow camera access in your device settings.');
+      return null;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'], quality: 0.7, allowsEditing: false,
+    });
+    return result.canceled ? null : result.assets[0].uri;
+  };
+
+  const handleArrived = () => {
+    Alert.alert('Confirm arrival', 'Are you at the pickup address?', [
+      { text: 'Not yet', style: 'cancel' },
+      {
+        text: "Yes, I'm here",
+        onPress: async () => {
+          await markArrived(jobId);
+          if (job?.posterId) {
+            sendPushNotification(
+              job.posterId,
+              'Your driver has arrived!',
+              `${appUser?.name ?? 'Your driver'} is at the pickup. Open the app to pay and start your move.`,
+              'tripUpdate'
+            );
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleStartTripCash = () => {
+    Alert.alert('Start trip?', 'Confirm you have collected the goods and the customer has paid cash.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Start',
         onPress: async () => {
-          await updateJobStatus(jobId, 'in_progress');
+          await startTrip(jobId);
           if (job?.posterId) {
             sendPushNotification(
               job.posterId,
@@ -130,43 +184,171 @@ export default function TripActiveScreen() {
   };
 
   const handleCompleteTrip = () => {
-    Alert.alert('Complete trip?', 'Confirm that you have arrived at the dropoff.', [
+    Alert.alert('Complete trip?', 'Take a photo of the delivered goods as proof of delivery.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Complete',
+        text: 'Take Photo & Complete',
         onPress: async () => {
-          await updateJobStatus(jobId, 'completed');
-          if (job?.posterId) {
-            sendPushNotification(
-              job.posterId,
-              'Delivery complete!',
-              'Your goods have been delivered. Open the app to rate your driver.',
-              'tripUpdate'
+          const uri = await takePhoto();
+          if (!uri) {
+            Alert.alert(
+              'Photo required',
+              'A delivery photo protects you in case of disputes.',
+              [
+                { text: 'Try Again', onPress: handleCompleteTrip },
+                {
+                  text: 'Skip (not recommended)',
+                  style: 'destructive',
+                  onPress: doCompleteTrip,
+                },
+              ]
             );
+            return;
           }
-          if (job?.agreedPrice) {
-            incrementTotalEarned(uid, job.agreedPrice);
-          }
-          // Prompt for store review after every 5th trip
-          const trips = (appUser?.totalTrips ?? 0) + 1;
-          if (trips % 5 === 0) {
-            const key = `review_prompted_${uid}`;
-            const already = await AsyncStorage.getItem(key);
-            if (!already && await StoreReview.hasAction()) {
-              await StoreReview.requestReview();
-              await AsyncStorage.setItem(key, 'true');
-            }
-          }
-          const toUserId = job?.posterId;
-          const toName = job?.posterName;
-          if (toUserId && toName) {
-            nav.replace('Rate', { jobId, toUserId, toName });
-          } else {
-            nav.popToTop();
-          }
+          setDeliveryPhotoUri(uri);
+          setUploadingPhoto(true);
+          let deliveryPhotoUrl: string | undefined;
+          try {
+            deliveryPhotoUrl = await uploadPhoto(uri, `jobs/${jobId}/delivery`);
+          } catch {}
+          setUploadingPhoto(false);
+          doCompleteTrip(deliveryPhotoUrl);
         },
       },
     ]);
+  };
+
+  const doCompleteTrip = async (deliveryPhotoUrl?: string) => {
+    try {
+      await updateJobStatus(jobId, 'completed', deliveryPhotoUrl ? { deliveryPhotoUrl } : undefined);
+      if (job?.posterId) {
+        sendPushNotification(
+          job.posterId,
+          'Delivery complete!',
+          'Your goods have been delivered. Open the app to rate your driver.',
+          'tripUpdate'
+        );
+      }
+      if (job?.agreedPrice) {
+        incrementTotalEarned(uid, job.agreedPrice);
+      }
+      const trips = (appUser?.totalTrips ?? 0) + 1;
+      if (trips % 5 === 0) {
+        const key = `review_prompted_${uid}`;
+        const already = await AsyncStorage.getItem(key);
+        if (!already && await StoreReview.hasAction()) {
+          await StoreReview.requestReview();
+          await AsyncStorage.setItem(key, 'true');
+        }
+      }
+      archiveJobConversations(jobId).catch(() => {});
+      const toUserId = job?.posterId;
+      const toName = job?.posterName;
+      if (toUserId && toName) {
+        nav.replace('Rate', { jobId, toUserId, toName });
+      } else {
+        nav.popToTop();
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Could not complete the trip. Please try again.');
+    }
+  };
+
+  const COMMISSION = 0.12;
+
+  const handleArrivalWalletPay = () => {
+    if (!job?.agreedPrice || !job.acceptedDriverId) return;
+    const total = job.agreedPrice;
+    const driverGets = Math.round(total * (1 - COMMISSION));
+    Alert.alert(
+      'Confirm payment',
+      `Pay R${total} from your wallet?\n\nYour driver receives R${driverGets} instantly. Move-Me keeps 12% (R${total - driverGets}).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Pay R${total} from wallet`,
+          onPress: async () => {
+            setSettlingWallet(true);
+            try {
+              await settleJobFromWallet(jobId, uid, job.acceptedDriverId!, total, 'arrival');
+              sendPushNotification(
+                job.acceptedDriverId!,
+                'Payment received — trip starting',
+                `R${driverGets} has been added to your wallet. Trip is now active.`,
+                'tripUpdate'
+              );
+            } catch (e: any) {
+              Alert.alert('Payment failed', e.message ?? 'Could not complete payment. Please try again.');
+            } finally {
+              setSettlingWallet(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleWalletSettle = () => {
+    if (!job?.agreedPrice || !job.acceptedDriverId) return;
+    const amount = job.agreedPrice;
+    const driverGets = Math.round(amount * 0.88);
+    Alert.alert(
+      'Pay from wallet',
+      `Pay R${amount} from your wallet?\n\nYour driver receives R${driverGets}. Move-Me keeps 12% (R${amount - driverGets}).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Pay R${amount}`,
+          onPress: async () => {
+            setSettlingWallet(true);
+            try {
+              await settleJobFromWallet(jobId, uid, job.acceptedDriverId!, amount, 'completion');
+              if (job.acceptedDriverId) {
+                sendPushNotification(
+                  job.acceptedDriverId,
+                  'Wallet payment received',
+                  `R${amount - 10} has been added to your Move-Me wallet.`,
+                  'tripUpdate'
+                );
+              }
+            } catch (e: any) {
+              Alert.alert('Payment failed', e.message ?? 'Could not complete wallet payment. Please try again.');
+            } finally {
+              setSettlingWallet(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmCash = () => {
+    const amount = job?.agreedPrice ? `R${job.agreedPrice}` : 'the agreed amount';
+    Alert.alert(
+      'Confirm cash payment',
+      `Have you paid your driver ${amount} in cash?`,
+      [
+        { text: 'Not yet', style: 'cancel' },
+        {
+          text: 'Yes, I paid',
+          onPress: async () => {
+            await confirmCashPayment(jobId);
+            if (job?.acceptedDriverId) {
+              sendPushNotification(
+                job.acceptedDriverId,
+                'Cash payment confirmed',
+                `${appUser?.name ?? 'Your customer'} has confirmed the cash payment.`,
+                'tripUpdate'
+              );
+              // Charge 12% commission from driver wallet (soft — doesn't block if no wallet)
+              if (job?.agreedPrice) {
+                chargeDriverCommission(job.acceptedDriverId, jobId, job.agreedPrice).catch(() => {});
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleChat = async () => {
@@ -191,20 +373,42 @@ export default function TripActiveScreen() {
   };
 
   const handleCancel = () => {
-    Alert.alert('Cancel trip?', 'This will cancel the booking.', [
+    if (!job) return;
+    const wasInAppPaid = job.walletSettled && (job.paidAmount ?? 0) > 0;
+    const fee = wasInAppPaid ? Math.round((job.paidAmount ?? 0) * 0.2) : 0;
+    const refund = wasInAppPaid ? (job.paidAmount ?? 0) - fee : 0;
+
+    const message = wasInAppPaid
+      ? `A 20% cancellation fee of R${fee.toFixed(2)} applies.\n\nR${refund.toFixed(2)} will be refunded to your wallet. The driver receives R${(fee / 2).toFixed(2)} compensation.`
+      : 'The booking will be cancelled.';
+
+    Alert.alert('Cancel trip?', message, [
       { text: 'No', style: 'cancel' },
       {
-        text: 'Yes, cancel',
+        text: wasInAppPaid ? `Cancel — pay R${fee.toFixed(2)} fee` : 'Yes, cancel',
         style: 'destructive',
-        onPress: () => updateJobStatus(jobId, 'cancelled').then(() => nav.popToTop()),
+        onPress: async () => {
+          if (wasInAppPaid) {
+            try {
+              await cancelJobWithFee(jobId, uid, job.acceptedDriverId);
+            } catch {
+              await updateJobStatus(jobId, 'cancelled');
+            }
+          } else {
+            await updateJobStatus(jobId, 'cancelled');
+          }
+          nav.popToTop();
+        },
       },
     ]);
   };
 
   if (!job) return null;
 
-  const isLive = ['accepted', 'in_progress'].includes(job.status);
+  const isLive = ['accepted', 'arrived', 'in_progress'].includes(job.status);
+  const isArrived = job.status === 'arrived';
   const isCompleted = job.status === 'completed';
+  const canSenderPay = !isDriver && isArrived && !job.walletSettled && !job.paymentMethod;
   const badgeColor = STATUS_COLOR[job.status] ?? colors.textMuted;
   const canRateDriver = !isDriver && isCompleted && !job.senderRated;
   const canTrack = !isDriver && isLive && !!job.driverLocation;
@@ -251,6 +455,19 @@ export default function TripActiveScreen() {
         <Text style={styles.headerTitle}>{isCompleted ? 'Trip Summary' : 'Trip Active'}</Text>
         <View style={{ width: 24 }} />
       </View>
+
+      {/* Driver navigation map */}
+      {isDriver && ['accepted', 'in_progress'].includes(job.status) && job && (
+        <View style={styles.driverMap}>
+          <DriverNavMap
+            driver={driverPos}
+            destination={
+              job.status === 'accepted' ? job.pickup.coords : job.dropoff.coords
+            }
+            destinationLabel={job.status === 'accepted' ? 'pickup' : 'dropoff'}
+          />
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.container}>
         <View style={[styles.statusBadge, { backgroundColor: badgeColor + '18' }]}>
@@ -395,12 +612,168 @@ export default function TripActiveScreen() {
           </View>
         )}
 
+        {/* Sender: arrival payment card */}
+        {canSenderPay && job.agreedPrice && (
+          <View style={styles.arrivalCard}>
+            <View style={styles.arrivalHeader}>
+              <Ionicons name="car" size={20} color="#F59E0B" />
+              <Text style={styles.arrivalTitle}>Your driver has arrived!</Text>
+            </View>
+            <Text style={styles.arrivalSub}>Choose how you'd like to pay</Text>
+
+            {/* In-app option */}
+            {(() => {
+              const driverGets = Math.round(job.agreedPrice * 0.88);
+              const hasBalance = walletBalance !== null && walletBalance >= job.agreedPrice;
+              return (
+                <>
+                  <TouchableOpacity
+                    style={[styles.payOption, styles.payOptionWallet, !hasBalance && { opacity: 0.7 }]}
+                    onPress={handleArrivalWalletPay}
+                    disabled={settlingWallet || !hasBalance}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.payOptionLeft}>
+                      <Ionicons name="wallet-outline" size={22} color={colors.white} />
+                      <View>
+                        <View style={styles.payOptionTitleRow}>
+                          <Text style={styles.payOptionTitle}>Pay in-app</Text>
+                          <View style={styles.saveBadge}>
+                            <Text style={styles.saveBadgeText}>RECOMMENDED</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.payOptionAmount}>R{job.agreedPrice}</Text>
+                        <Text style={styles.payOptionNote}>
+                          Driver receives R{driverGets} instantly · guaranteed
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+                  </TouchableOpacity>
+
+                  {!hasBalance && (
+                    <TouchableOpacity
+                      style={styles.topUpLink}
+                      onPress={() => nav.navigate('TopUp' as any)}
+                    >
+                      <Ionicons name="add-circle-outline" size={14} color={colors.primary} />
+                      <Text style={styles.topUpLinkText}>
+                        {walletBalance !== null
+                          ? `Add R${Math.ceil(job.agreedPrice - walletBalance)} to wallet to pay in-app`
+                          : 'Top up wallet to pay in-app'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Cash option */}
+            <TouchableOpacity
+              style={[styles.payOption, styles.payOptionCash]}
+              activeOpacity={0.85}
+              onPress={() => {
+                const commission = Math.round((job.agreedPrice ?? 0) * 0.12);
+                Alert.alert(
+                  'Pay cash?',
+                  `You'll hand R${job.agreedPrice} directly to your driver.\n\nYour driver will pay R${commission} (12%) Move-Me commission from their wallet.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Yes, pay cash',
+                      onPress: async () => {
+                        await updateJobStatus(jobId, 'in_progress', { paymentMethod: 'cash' });
+                        sendPushNotification(
+                          job.acceptedDriverId!,
+                          'Customer confirmed — cash payment',
+                          `${appUser?.name ?? 'Your customer'} will pay R${job.agreedPrice} in cash. Start the trip when ready.`,
+                          'tripUpdate'
+                        );
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={styles.payOptionLeft}>
+                <Ionicons name="cash-outline" size={22} color={colors.text} />
+                <View>
+                  <Text style={[styles.payOptionTitle, { color: colors.text }]}>Pay cash</Text>
+                  <Text style={[styles.payOptionAmount, { color: colors.text }]}>R{job.agreedPrice}</Text>
+                  <Text style={[styles.payOptionNote, { color: colors.textSecondary }]}>
+                    Pay driver directly · 12% commission charged to driver
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Driver: pickup photo prompt */}
+        {isDriver && job.status === 'in_progress' && !pickupPhotoUri && !job.pickupPhotoUrl && (
+          <TouchableOpacity
+            style={styles.photoPromptCard}
+            activeOpacity={0.85}
+            onPress={async () => {
+              const uri = await takePhoto();
+              if (!uri) return;
+              setPickupPhotoUri(uri);
+              uploadPhoto(uri, `jobs/${jobId}/pickup`)
+                .then(url => updateJobStatus(jobId, 'in_progress', { pickupPhotoUrl: url } as any))
+                .catch(() => {});
+            }}
+          >
+            <Ionicons name="camera-outline" size={22} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.photoPromptTitle}>Take pickup photo</Text>
+              <Text style={styles.photoPromptSub}>Photo of the collected goods — protects you in disputes</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+        {isDriver && job.status === 'in_progress' && (pickupPhotoUri || job.pickupPhotoUrl) && (
+          <View style={styles.photoCard}>
+            <Text style={styles.photoCardLabel}>Pickup photo</Text>
+            <Image
+              source={{ uri: pickupPhotoUri ?? job.pickupPhotoUrl }}
+              style={styles.photoThumb}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
+        {/* Completed: delivery photo display */}
+        {isCompleted && (deliveryPhotoUri || job.deliveryPhotoUrl) && (
+          <View style={styles.photoCard}>
+            <Text style={styles.photoCardLabel}>Proof of delivery</Text>
+            <Image
+              source={{ uri: deliveryPhotoUri ?? job.deliveryPhotoUrl }}
+              style={styles.photoThumb}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
         <View style={styles.actions}>
           {isDriver && job.status === 'accepted' && (
-            <Button label="Start Trip" onPress={handleStartTrip} style={styles.mb} />
+            <Button label="I've Arrived" onPress={handleArrived} style={styles.mb} />
+          )}
+          {isDriver && isArrived && job.paymentMethod === 'cash' && (
+            <Button label="Start Trip" onPress={handleStartTripCash} style={styles.mb} />
+          )}
+          {isDriver && isArrived && !job.paymentMethod && (
+            <View style={styles.waitingPaymentBadge}>
+              <Ionicons name="time-outline" size={18} color="#F59E0B" />
+              <Text style={styles.waitingPaymentText}>Waiting for customer payment…</Text>
+            </View>
           )}
           {isDriver && job.status === 'in_progress' && (
-            <Button label="Complete Trip" onPress={handleCompleteTrip} style={styles.mb} />
+            <Button
+              label={uploadingPhoto ? 'Uploading photo…' : 'Complete Trip'}
+              onPress={uploadingPhoto ? () => {} : handleCompleteTrip}
+              style={styles.mb}
+            />
           )}
           {canRateDriver && (
             <Button
@@ -424,6 +797,80 @@ export default function TripActiveScreen() {
             </View>
           )}
           {isCompleted && (
+            <>
+              {/* Wallet payment — sender pays driver from wallet */}
+              {!isDriver && !job.walletSettled && !job.cashConfirmedBySender && job.agreedPrice && (
+                walletBalance !== null && walletBalance >= job.agreedPrice ? (
+                  <TouchableOpacity
+                    style={styles.walletPayBtn}
+                    onPress={handleWalletSettle}
+                    disabled={settlingWallet}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="wallet-outline" size={20} color={colors.white} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cashBtnTitle}>Pay from wallet</Text>
+                      <Text style={styles.cashBtnSub}>
+                        R{job.agreedPrice} · wallet balance R{walletBalance.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.white} />
+                  </TouchableOpacity>
+                ) : null
+              )}
+              {!isDriver && job.walletSettled && (
+                <View style={[styles.cashConfirmedBadge, { borderColor: '#7C3AED40', backgroundColor: '#7C3AED10' }]}>
+                  <Ionicons name="wallet" size={20} color="#7C3AED" />
+                  <Text style={[styles.cashConfirmedText, { color: '#7C3AED' }]}>
+                    Paid R{job.agreedPrice} from wallet
+                  </Text>
+                </View>
+              )}
+              {isDriver && job.walletSettled && (
+                <View style={[styles.cashConfirmedBadge, { borderColor: '#7C3AED40', backgroundColor: '#7C3AED10' }]}>
+                  <Ionicons name="wallet" size={20} color="#7C3AED" />
+                  <Text style={[styles.cashConfirmedText, { color: '#7C3AED' }]}>
+                    R{job.agreedPrice ? job.agreedPrice - 10 : '—'} added to your wallet
+                  </Text>
+                </View>
+              )}
+
+              {/* Cash payment handshake — only show if wallet not used */}
+              {!isDriver && !job.walletSettled && !job.cashConfirmedBySender && (
+                <TouchableOpacity style={styles.cashBtn} onPress={handleConfirmCash} activeOpacity={0.85}>
+                  <Ionicons name="cash-outline" size={20} color={colors.white} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cashBtnTitle}>Confirm cash payment</Text>
+                    <Text style={styles.cashBtnSub}>
+                      Pay your driver {job.agreedPrice ? `R${job.agreedPrice}` : 'the agreed amount'} in cash
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.white} />
+                </TouchableOpacity>
+              )}
+              {!isDriver && job.cashConfirmedBySender && (
+                <View style={styles.cashConfirmedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  <Text style={styles.cashConfirmedText}>Cash payment confirmed</Text>
+                </View>
+              )}
+              {isDriver && !job.walletSettled && (
+                <View style={[styles.cashConfirmedBadge, job.cashConfirmedBySender && { borderColor: colors.primary + '40', backgroundColor: colors.primary + '10' }]}>
+                  <Ionicons
+                    name={job.cashConfirmedBySender ? 'checkmark-circle' : 'cash-outline'}
+                    size={20}
+                    color={job.cashConfirmedBySender ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={[styles.cashConfirmedText, !job.cashConfirmedBySender && { color: colors.textMuted }]}>
+                    {job.cashConfirmedBySender
+                      ? `Customer confirmed R${job.agreedPrice ?? '—'} cash payment`
+                      : `Waiting for customer to confirm cash payment`}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+          {isCompleted && (
             <TouchableOpacity style={styles.receiptBtn} onPress={shareReceipt}>
               <Ionicons name="receipt-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.receiptBtnText}>Share Receipt</Text>
@@ -440,6 +887,7 @@ export default function TripActiveScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  driverMap: { height: 320 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 16,
@@ -526,9 +974,84 @@ const styles = StyleSheet.create({
   ratedText: { fontSize: 14, fontWeight: '600', color: colors.text },
   receiptBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 12, paddingVertical: 13,
+    borderRadius: 12, paddingVertical: 13, marginTop: 10,
     borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   receiptBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  // Arrival payment card
+  arrivalCard: {
+    backgroundColor: colors.surface, borderRadius: 18, padding: 16,
+    borderWidth: 2, borderColor: '#F59E0B',
+    shadowColor: '#F59E0B', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
+    elevation: 4, gap: 10,
+  },
+  arrivalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  arrivalTitle: { fontSize: 17, fontWeight: '900', color: colors.text },
+  arrivalSub: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
+  payOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: 14, padding: 14, gap: 12,
+  },
+  payOptionWallet: { backgroundColor: colors.primary },
+  payOptionCash: {
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  payOptionLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, flex: 1 },
+  payOptionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  payOptionTitle: { fontSize: 15, fontWeight: '800', color: colors.white },
+  payOptionAmount: { fontSize: 22, fontWeight: '900', color: colors.white, marginTop: 2 },
+  payOptionNote: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  saveBadge: {
+    backgroundColor: '#fff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  saveBadgeText: { fontSize: 10, fontWeight: '900', color: colors.primary },
+  topUpLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 4, marginTop: -4,
+  },
+  topUpLinkText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
+  photoPromptCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
+    borderWidth: 1.5, borderColor: colors.primary + '40',
+    borderStyle: 'dashed',
+  },
+  photoPromptTitle: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  photoPromptSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  photoCard: {
+    backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  photoCardLabel: {
+    fontSize: 11, fontWeight: '700', color: colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.5, padding: 12, paddingBottom: 8,
+  },
+  photoThumb: { width: '100%', height: 180 },
+  waitingPaymentBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F59E0B18', borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: '#F59E0B40', marginBottom: 10,
+  },
+  waitingPaymentText: { fontSize: 14, fontWeight: '600', color: '#F59E0B' },
+
+  walletPayBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#7C3AED', borderRadius: 14, padding: 16,
+    marginBottom: 10,
+  },
+  cashBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
+    marginBottom: 10,
+  },
+  cashBtnTitle: { fontSize: 15, fontWeight: '800', color: colors.white },
+  cashBtnSub: { fontSize: 12, color: colors.white + 'CC', marginTop: 2 },
+  cashConfirmedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: 14, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  cashConfirmedText: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
 });
