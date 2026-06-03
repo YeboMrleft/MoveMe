@@ -10,6 +10,7 @@
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      { "source": "/track/**", "destination": "/track.html" },
       { "source": "/payfast/notify", "function": "moveMePayFastNotify" }
     ]
   },

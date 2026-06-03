@@ -13,6 +13,7 @@ import { listenToOpenJobsNear, listenToDriverActiveJob } from '../../services/jo
 import { listenToNotifications } from '../../services/notificationService';
 import { JOB_CATEGORIES } from '../../constants/categories';
 import { setDriverOnline } from '../../services/userService';
+import { listenToWallet } from '../../services/walletService';
 import { Job } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { formatScheduledTime } from '../../utils/formatSchedule';
@@ -42,7 +43,13 @@ export default function DriverHomeScreen() {
   const [online, setOnline] = useState(appUser?.isOnline ?? false);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const uid = getAuth().currentUser?.uid ?? '';
+
+  useEffect(() => {
+    if (!uid) return;
+    return listenToWallet(uid, w => setWalletBalance(w?.balance ?? 0));
+  }, [uid]);
 
   useEffect(() => {
     if (!uid) return;
@@ -98,6 +105,48 @@ export default function DriverHomeScreen() {
           />
         </View>
       </View>
+
+      {/* Low wallet balance warning */}
+      {walletBalance !== null && walletBalance < 50 && (
+        <TouchableOpacity
+          style={[
+            styles.walletBanner,
+            walletBalance <= 0 && styles.walletBannerCritical,
+          ]}
+          onPress={() => nav.navigate('Wallet' as any)}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name="wallet-outline"
+            size={18}
+            color={walletBalance <= 0 ? '#fff' : '#92400E'}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[
+              styles.walletBannerTitle,
+              walletBalance <= 0 && { color: '#fff' },
+            ]}>
+              {walletBalance <= 0
+                ? 'No wallet balance — offers may be restricted'
+                : `Low wallet balance — R${walletBalance.toFixed(2)}`}
+            </Text>
+            <Text style={[
+              styles.walletBannerSub,
+              walletBalance <= 0 && { color: 'rgba(255,255,255,0.8)' },
+            ]}>
+              {walletBalance <= 0
+                ? 'Top up now to keep submitting offers and pay cash job commissions'
+                : 'Top up to ensure you can pay commission on cash jobs'}
+            </Text>
+          </View>
+          <Text style={[
+            styles.walletBannerBtn,
+            walletBalance <= 0 && { color: '#fff', borderColor: 'rgba(255,255,255,0.5)' },
+          ]}>
+            Top Up
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {activeJob && (
         <TouchableOpacity
@@ -229,6 +278,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   badgeText: { fontSize: 10, fontWeight: '800', color: colors.white },
+  walletBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FEF3C7', paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#FDE68A',
+  },
+  walletBannerCritical: {
+    backgroundColor: '#DC2626',
+    borderBottomColor: '#B91C1C',
+  },
+  walletBannerTitle: { fontSize: 13, fontWeight: '800', color: '#92400E' },
+  walletBannerSub: { fontSize: 11, color: '#78350F', marginTop: 1 },
+  walletBannerBtn: {
+    fontSize: 12, fontWeight: '800', color: '#92400E',
+    borderWidth: 1.5, borderColor: '#D97706',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+  },
   activeBanner: {
     backgroundColor: colors.primary, margin: 12, borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

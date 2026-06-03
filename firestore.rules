@@ -24,7 +24,11 @@ service cloud.firestore {
 
     // ── Jobs ─────────────────────────────────────────────────────────────────
     match /jobs/{jobId} {
-      allow read:   if request.auth != null;
+      // Active/completed jobs are publicly readable so the share-tracking web
+      // page works without Firebase authentication in the browser.
+      allow read:   if request.auth != null
+                    || (resource != null
+                        && resource.data.status in ['accepted','arrived','in_progress','completed']);
       allow create: if request.auth != null;
       allow update: if request.auth != null;
       allow delete: if request.auth != null

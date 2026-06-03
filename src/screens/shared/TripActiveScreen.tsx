@@ -414,6 +414,14 @@ export default function TripActiveScreen() {
   const canTrack = !isDriver && isLive && !!job.driverLocation;
   const isFav = appUser?.favouriteDriverIds?.includes(job.acceptedDriverId ?? '') ?? false;
 
+  const shareTracking = async () => {
+    const url = `https://move-me-acc55.web.app/track/${jobId}`;
+    await Share.share({
+      message: `Track my move live 🚚\n${url}`,
+      title: 'Move-Me Live Tracking',
+    });
+  };
+
   const shareReceipt = async () => {
     if (!job) return;
     const date = new Date(job.createdAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -545,6 +553,14 @@ export default function TripActiveScreen() {
               <Text style={styles.navBtnText}>Open Navigation</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Share live tracking link — sender only, when trip is active */}
+        {!isDriver && isLive && (
+          <TouchableOpacity style={styles.shareTrackBtn} onPress={shareTracking} activeOpacity={0.8}>
+            <Ionicons name="share-outline" size={18} color={colors.primary} />
+            <Text style={styles.shareTrackText}>Share live tracking link</Text>
+          </TouchableOpacity>
         )}
 
         {/* Track button — sender only, when driver has shared location */}
@@ -928,6 +944,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
   },
   chatBtnText: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  shareTrackBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary + '10', borderRadius: 12, paddingVertical: 12,
+    borderWidth: 1, borderColor: colors.primary + '30',
+  },
+  shareTrackText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   trackBtn: {
     backgroundColor: colors.surface, borderRadius: 14, padding: 16,
     borderWidth: 2, borderColor: colors.primary,
