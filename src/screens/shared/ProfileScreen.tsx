@@ -398,7 +398,7 @@ export default function ProfileScreen() {
                 }]} />
               </View>
             )}
-          </View>
+          </Card>
         )}
 
         {/* ── Sender: saved routes ── */}
@@ -430,7 +430,7 @@ export default function ProfileScreen() {
                 </View>
               </View>
             ))}
-          </View>
+          </Card>
         )}
 
         {/* ── Notifications ── */}
@@ -482,7 +482,7 @@ export default function ProfileScreen() {
               thumbColor={prefs.tripUpdates ? colors.primary : colors.textMuted}
             />
           </View>
-        </View>
+        </Card>
 
         {/* ── Driver: vehicle ── */}
         {isDriver && (
@@ -533,7 +533,7 @@ export default function ProfileScreen() {
                 <Ionicons name="lock-closed-outline" size={13} color={colors.textMuted} />
               </View>
             </View>
-          </View>
+          </Card>
         )}
 
         {/* ── Driver: payout details ── */}
@@ -573,7 +573,7 @@ export default function ProfileScreen() {
                 Your bank details are stored securely and will be used for future automated payouts.
               </Text>
             </View>
-          </View>
+          </Card>
         )}
 
         {/* ── Referral ── */}
@@ -608,7 +608,7 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
-        </View>
+        </Card>
 
         {/* ── Leaderboard ── */}
         <TouchableOpacity
