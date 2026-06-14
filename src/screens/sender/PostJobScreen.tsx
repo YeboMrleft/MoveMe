@@ -270,18 +270,6 @@ export default function PostJobScreen() {
         </View>
 
         <View style={{ zIndex: 10 }}>
-          {(appUser as any)?.residentialAddress ? (
-            <TouchableOpacity
-              style={styles.myAddressChip}
-              onPress={fillMyAddress}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="home-outline" size={16} color={colors.primary} />
-              <Text style={styles.myAddressText} numberOfLines={1}>
-                Use my address: {(appUser as any).residentialAddress}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
           <AddressAutocomplete
             ref={dropoffRef}
             label="Dropoff Address"

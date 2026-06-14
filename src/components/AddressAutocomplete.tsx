@@ -1,15 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useState, useRef, useCallback } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { colors } from '../constants/colors';
-
-const MAPBOX_TOKEN: string =
-  process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
-  (Constants.expoConfig?.extra as any)?.mapboxToken ??
-  '';
 
 export interface Coords { latitude: number; longitude: number }
 
@@ -21,7 +16,7 @@ export interface AddressAutocompleteRef {
 interface Suggestion {
   id: string;
   place_name: string;
-  center: [number, number]; // [lng, lat]
+  center: [number, number];
 }
 
 interface Props {
@@ -33,11 +28,11 @@ interface Props {
 
 const AddressAutocomplete = forwardRef<AddressAutocompleteRef, Props>(
   ({ label, placeholder, onSelect, zIndex = 1 }, ref) => {
-    const [text, setText]             = useState('');
+    const [text, setText] = useState('');
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-    const [loading, setLoading]       = useState(false);
-    const [open, setOpen]             = useState(false);
-    const debounceRef                 = useRef<ReturnType<typeof setTimeout>>();
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
     useImperativeHandle(ref, () => ({
       setText: (val: string) => {
@@ -48,25 +43,32 @@ const AddressAutocomplete = forwardRef<AddressAutocompleteRef, Props>(
       getAddressText: () => text,
     }));
 
-    const search = useCallback(async (query: string) => {
-      if (query.length < 2) { setSuggestions([]); setOpen(false); return; }
+    const search = async (query: string) => {
+      if (query.length < 2) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
+
+      const token = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
+        (Constants.expoConfig?.extra as any)?.mapboxToken ?? '';
+
+      if (!token) return;
+
       setLoading(true);
       try {
-        const url =
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +
-          `?access_token=${MAPBOX_TOKEN}&country=ZA&language=en&limit=6` +
-          `&types=address,place,street,locality,neighborhood,poi,region`;
-        const res  = await fetch(url);
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=ZA&language=en&limit=6&types=address,place,street,locality,neighborhood,poi,region`;
+        const res = await fetch(url);
         const json = await res.json();
         const features: Suggestion[] = json.features ?? [];
         setSuggestions(features);
         setOpen(features.length > 0);
-      } catch {
+      } catch (error) {
         setSuggestions([]);
       } finally {
         setLoading(false);
       }
-    }, []);
+    };
 
     const handleChange = (val: string) => {
       setText(val);

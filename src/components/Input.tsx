@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
 import { colors } from '../constants/colors';
 import { spacing, sizes, radius, shadows } from '../constants/spacing';
@@ -20,7 +20,6 @@ export default function Input({
   variant = 'outlined',
   ...props
 }: Props) {
-  const [focused, setFocused] = useState(false);
 
   const heightMap = {
     sm: 36,
@@ -46,16 +45,8 @@ export default function Input({
         style={[
           styles.row,
           { height, paddingHorizontal },
-          variant === 'outlined' && (
-            error
-              ? styles.outlinedError
-              : focused
-              ? styles.outlinedFocused
-              : styles.outlinedNormal
-          ),
-          variant === 'filled' && (
-            error ? styles.filledError : focused ? styles.filledFocused : styles.filledNormal
-          ),
+          variant === 'outlined' && (error ? styles.outlinedError : styles.outlinedNormal),
+          variant === 'filled' && (error ? styles.filledError : styles.filledNormal),
           style,
         ]}
       >
@@ -63,8 +54,6 @@ export default function Input({
         <TextInput
           style={[styles.input, { fontSize }]}
           placeholderTextColor={colors.textMuted}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           {...props}
         />
       </View>
@@ -98,16 +87,6 @@ const styles = StyleSheet.create({
   outlinedNormal: {
     borderColor: colors.border,
   },
-  outlinedFocused: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-    paddingHorizontal: spacing[3] - 0.5,
-    shadowColor: colors.shadowSm,
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
   outlinedError: {
     borderColor: colors.error,
     borderWidth: 1.5,
@@ -117,16 +96,6 @@ const styles = StyleSheet.create({
   filledNormal: {
     backgroundColor: colors.surfaceAlt,
     borderColor: 'transparent',
-  },
-  filledFocused: {
-    backgroundColor: colors.surface,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-    shadowColor: colors.shadowSm,
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
   },
   filledError: {
     backgroundColor: colors.error + '08',
