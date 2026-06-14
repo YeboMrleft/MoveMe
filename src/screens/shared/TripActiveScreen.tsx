@@ -9,6 +9,7 @@ import { getAuth } from 'firebase/auth';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
 import { listenToJob, updateJobStatus, markArrived, startTrip, createConversation, updateJobDriverLocation, confirmCashPayment, archiveJobConversations } from '../../services/jobService';
 import { listenToWallet, settleJobFromWallet, chargeDriverCommission, cancelJobWithFee } from '../../services/walletService';
 import { sendPushNotification } from '../../services/notificationService';
@@ -18,6 +19,9 @@ import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Job } from '../../types';
 import Button from '../../components/Button';
+import Card from '../../components/Card';
+import Badge from '../../components/Badge';
+import Divider from '../../components/Divider';
 import DriverNavMap from '../../components/DriverNavMap';
 import { useAuth } from '../../hooks/useAuth';
 import { Share } from 'react-native';
@@ -457,11 +461,11 @@ export default function TripActiveScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => nav.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isCompleted ? 'Trip Summary' : 'Trip Active'}</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       {/* Driver navigation map */}
@@ -902,178 +906,511 @@ export default function TripActiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  driverMap: { height: 320 },
+  safe: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+
+  // Driver Map
+  driverMap: {
+    height: 320,
+  },
+
+  // Header
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    shadowColor: colors.shadowSm,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  container: { padding: 20, gap: 16, paddingBottom: 32 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '08',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+
+  // Container
+  container: {
+    padding: spacing[4],
+    gap: spacing[4],
+    paddingBottom: spacing[8],
+  },
+
+  // Status Badge
   statusBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radius.full,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 14, fontWeight: '700' },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Card
   card: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 18,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  cardLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  cardValue: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 4 },
-  priceValue: { fontSize: 24, fontWeight: '900', color: colors.primary, marginTop: 4 },
-  divider: { height: 1, backgroundColor: colors.divider, marginVertical: 12 },
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cardValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: spacing[1],
+  },
+  priceValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.primary,
+    marginTop: spacing[1],
+    letterSpacing: -0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: spacing[3],
+  },
+
+  // Person Card
   personCard: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: colors.border,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
   },
-  personLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  personName: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 2 },
-  personActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  personLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  personName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing[1],
+  },
+  personActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
   heartBtn: {
-    width: 40, height: 40, borderRadius: 10,
-    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
   },
-  chatBtnText: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  chatBtnText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  // Share & Track
   shareTrackBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.primary + '10', borderRadius: 12, paddingVertical: 12,
-    borderWidth: 1, borderColor: colors.primary + '30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.primary + '10',
+    borderRadius: radius.lg,
+    paddingVertical: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.primary + '25',
   },
-  shareTrackText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  shareTrackText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
   trackBtn: {
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
-    borderWidth: 2, borderColor: colors.primary,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 2,
+    borderColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   trackBtnDisabled: {
-    borderColor: colors.border, borderWidth: 1,
+    borderColor: colors.border,
+    borderWidth: 1,
   },
-  trackLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  trackLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
   trackDot: {
-    width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary,
-    shadowColor: colors.primary, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
-  trackTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  trackSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  trackTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  trackSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing[1],
+  },
+
+  // Navigation Card
   navCard: {
-    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
-    borderWidth: 2, borderColor: colors.primary,
-    gap: 10,
-    shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 2,
+    borderColor: colors.primary,
+    gap: spacing[2],
+    shadowColor: colors.primary,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  navHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  navTitle: { fontSize: 15, fontWeight: '800', color: colors.primary },
-  navAddress: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  navTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  navAddress: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   navBtn: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 14, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
   },
-  navBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+  navBtnText: {
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 16,
+  },
   navBtnSecondary: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[2],
   },
-  navBtnSecondaryText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-  actions: { gap: 0 },
-  mb: { marginBottom: 10 },
+  navBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Actions
+  actions: {
+    gap: 0,
+  },
+  mb: {
+    marginBottom: spacing[2],
+  },
   ratedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.accent + '20', borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: colors.accent + '40',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.accent + '15',
+    borderRadius: radius.md,
+    padding: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.accent + '25',
   },
-  ratedText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  ratedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
   receiptBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 12, paddingVertical: 13, marginTop: 10,
-    borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    borderRadius: radius.md,
+    paddingVertical: spacing[3],
+    marginTop: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  receiptBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  receiptBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   // Arrival payment card
   arrivalCard: {
-    backgroundColor: colors.surface, borderRadius: 18, padding: 16,
-    borderWidth: 2, borderColor: '#F59E0B',
-    shadowColor: '#F59E0B', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
-    elevation: 4, gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing[4],
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    gap: spacing[2],
   },
-  arrivalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  arrivalTitle: { fontSize: 17, fontWeight: '900', color: colors.text },
-  arrivalSub: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
+  arrivalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  arrivalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.text,
+  },
+  arrivalSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing[1],
+  },
   payOption: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: 14, padding: 14, gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: radius.lg,
+    padding: spacing[3],
+    gap: spacing[3],
   },
-  payOptionWallet: { backgroundColor: colors.primary },
+  payOptionWallet: {
+    backgroundColor: colors.primary,
+  },
   payOptionCash: {
     backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  payOptionLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, flex: 1 },
-  payOptionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  payOptionTitle: { fontSize: 15, fontWeight: '800', color: colors.white },
-  payOptionAmount: { fontSize: 22, fontWeight: '900', color: colors.white, marginTop: 2 },
-  payOptionNote: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  payOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    flex: 1,
+  },
+  payOptionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  payOptionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  payOptionAmount: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.white,
+    marginTop: spacing[1],
+  },
+  payOptionNote: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: spacing[1],
+  },
   saveBadge: {
-    backgroundColor: '#fff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+    backgroundColor: '#fff',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[0],
   },
-  saveBadgeText: { fontSize: 10, fontWeight: '900', color: colors.primary },
+  saveBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.primary,
+  },
   topUpLink: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 4, marginTop: -4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    paddingHorizontal: spacing[1],
+    marginTop: -spacing[1],
   },
-  topUpLinkText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
+  topUpLinkText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+
+  // Photo
   photoPromptCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1.5, borderColor: colors.primary + '40',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    borderWidth: 1.5,
+    borderColor: colors.primary + '40',
     borderStyle: 'dashed',
   },
-  photoPromptTitle: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  photoPromptSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  photoPromptTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  photoPromptSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing[1],
+  },
   photoCard: {
-    backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden',
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   photoCardLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, padding: 12, paddingBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    padding: spacing[3],
+    paddingBottom: spacing[2],
   },
-  photoThumb: { width: '100%', height: 180 },
-  waitingPaymentBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F59E0B18', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#F59E0B40', marginBottom: 10,
+  photoThumb: {
+    width: '100%',
+    height: 180,
   },
-  waitingPaymentText: { fontSize: 14, fontWeight: '600', color: '#F59E0B' },
 
+  // Payment badges
+  waitingPaymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: '#F59E0B15',
+    borderRadius: radius.md,
+    padding: spacing[3],
+    borderWidth: 1,
+    borderColor: '#F59E0B25',
+    marginBottom: spacing[3],
+  },
+  waitingPaymentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
   walletPayBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#7C3AED', borderRadius: 14, padding: 16,
-    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: '#7C3AED',
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    marginBottom: spacing[3],
   },
   cashBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
-    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+    marginBottom: spacing[3],
   },
-  cashBtnTitle: { fontSize: 15, fontWeight: '800', color: colors.white },
-  cashBtnSub: { fontSize: 12, color: colors.white + 'CC', marginTop: 2 },
+  cashBtnTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  cashBtnSub: {
+    fontSize: 12,
+    color: colors.white + 'CC',
+    marginTop: spacing[1],
+  },
   cashConfirmedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, borderRadius: 14, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing[3],
+    marginBottom: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  cashConfirmedText: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
+  cashConfirmedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
 });
