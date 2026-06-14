@@ -8,12 +8,16 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadows } from '../../constants/spacing';
 import { listenToJob, updateJobStatus, createConversation } from '../../services/jobService';
 import { listenToJobOffers, scoreAndSelectTop3, updateOfferStatus } from '../../services/offerService';
 import { Job, DriverOffer } from '../../types';
 import Avatar from '../../components/Avatar';
 import Button from '../../components/Button';
 import StarRating from '../../components/StarRating';
+import Card from '../../components/Card';
+import Badge from '../../components/Badge';
+import Divider from '../../components/Divider';
 import TierBadge from '../../components/TierBadge';
 import { getDriverTier } from '../../utils/driverTier';
 import { SenderStackParams } from '../../navigation/SenderNavigator';
@@ -149,42 +153,54 @@ export default function JobOffersScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => nav.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Best Offers</Text>
-        <TouchableOpacity onPress={handleCancelJob} style={styles.cancelHeaderBtn}>
-          <Text style={styles.cancelHeaderText}>Cancel job</Text>
+        <TouchableOpacity onPress={handleCancelJob} style={styles.cancelBtn}>
+          <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
 
       {job && (
-        <View style={styles.jobSummary}>
+        <Card variant="outlined" padding={4} style={styles.routeCard}>
           <View style={styles.routeRow}>
-            <Ionicons name="radio-button-on" size={12} color={colors.primary} />
-            <Text style={styles.routeText} numberOfLines={1}>{job.pickup.address}</Text>
+            <View style={styles.routeIcon}>
+              <Ionicons name="radio-button-on" size={14} color={colors.primary} />
+            </View>
+            <View style={styles.routeInfo}>
+              <Text style={styles.routeLabel}>Pickup</Text>
+              <Text style={styles.routeAddress} numberOfLines={1}>{job.pickup.address}</Text>
+            </View>
           </View>
+          <Divider variant="inset" margin={2} />
           <View style={styles.routeRow}>
-            <Ionicons name="location" size={12} color={colors.danger} />
-            <Text style={styles.routeText} numberOfLines={1}>{job.dropoff.address}</Text>
+            <View style={styles.routeIcon}>
+              <Ionicons name="location" size={14} color={colors.error} />
+            </View>
+            <View style={styles.routeInfo}>
+              <Text style={styles.routeLabel}>Dropoff</Text>
+              <Text style={styles.routeAddress} numberOfLines={1}>{job.dropoff.address}</Text>
+            </View>
           </View>
-        </View>
+        </Card>
       )}
 
       <FlatList
         data={top3}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
+        scrollIndicatorInsets={{ right: 1 }}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             {totalDrivers === 0 ? (
-              <Text style={styles.waitingText}>Waiting for drivers to respond…</Text>
+              <Text style={styles.statusText}>Waiting for drivers to respond…</Text>
             ) : top3.length < 3 ? (
-              <Text style={styles.waitingText}>
+              <Text style={styles.statusText}>
                 {totalDrivers} offer{totalDrivers !== 1 ? 's' : ''} received — showing best {top3.length}
               </Text>
             ) : (
-              <Text style={styles.topText}>
+              <Text style={styles.statusTitle}>
                 Top 3 from {totalDrivers} driver{totalDrivers !== 1 ? 's' : ''}
               </Text>
             )}
@@ -194,84 +210,96 @@ export default function JobOffersScreen() {
           <WaitingForDriverAnimation offerCount={totalDrivers} />
         }
         renderItem={({ item, index }) => (
-          <View style={[styles.offerCard, index === 0 && styles.topOffer]}>
+          <Card
+            variant={index === 0 ? 'elevated' : 'outlined'}
+            padding={4}
+            style={[styles.offerCardWrapper, index === 0 && styles.topOfferWrapper]}
+          >
             {index === 0 && (
-              <View style={styles.bestBadge}>
-                <Ionicons name="trophy" size={12} color={colors.black} />
-                <Text style={styles.bestText}>Best Match</Text>
-              </View>
+              <Badge variant="default" size="sm" style={styles.bestBadge}>
+                <Ionicons name="trophy" size={12} color={colors.white} />
+                <Text style={styles.bestBadgeText}>Best Match</Text>
+              </Badge>
             )}
 
             <View style={styles.offerTop}>
               {item.driverPhoto ? (
                 <Image source={{ uri: item.driverPhoto }} style={styles.driverPhoto} />
               ) : (
-                <Avatar name={item.driverName} size={56} />
+                <Avatar name={item.driverName} size="md" />
               )}
               <View style={styles.driverInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.driverName}>{item.driverName}</Text>
-                  {item.verificationStatus === 'verified' && <VerifiedBadge />}
-                  <TierBadge tier={getDriverTier(item.driverRating > 0 ? 1 : 0, item.driverRating)} />
-                  {favourites.includes(item.driverId) && (
-                    <View style={styles.favBadge}>
-                      <Ionicons name="heart" size={10} color="#E11D48" />
-                      <Text style={styles.favBadgeText}>Favourite</Text>
-                    </View>
+                  <Text style={styles.driverName} numberOfLines={1}>{item.driverName}</Text>
+                  {item.verificationStatus === 'verified' && (
+                    <Badge variant="default" size="sm">
+                      <Ionicons name="shield-checkmark" size={10} color={colors.white} />
+                      <Text style={styles.badgeText}>Verified</Text>
+                    </Badge>
                   )}
                 </View>
-                <StarRating value={Math.round(item.driverRating)} size={14} />
-                <Text style={styles.ratingNum}>
-                  {item.driverRating > 0 ? item.driverRating.toFixed(1) : 'New driver'}
-                </Text>
+                <View style={styles.ratingRow}>
+                  <StarRating value={Math.round(item.driverRating)} size="sm" />
+                  <Text style={styles.ratingLabel}>
+                    {item.driverRating > 0 ? item.driverRating.toFixed(1) : 'New'}
+                  </Text>
+                </View>
                 {item.registrationNumber && (
-                  <Text style={styles.regNum}>{item.registrationNumber}</Text>
+                  <Text style={styles.regNumber}>{item.registrationNumber}</Text>
                 )}
               </View>
               <View style={styles.priceCol}>
                 <Text style={styles.price}>R{item.price}</Text>
-                <TouchableOpacity onPress={() => toggleFavourite(item.driverId)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity
+                  onPress={() => toggleFavourite(item.driverId)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <Ionicons
                     name={favourites.includes(item.driverId) ? 'heart' : 'heart-outline'}
-                    size={22}
-                    color={favourites.includes(item.driverId) ? '#E11D48' : colors.textMuted}
+                    size={20}
+                    color={favourites.includes(item.driverId) ? colors.error : colors.textMuted}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {item.note ? (
-              <View style={styles.noteBox}>
-                <Ionicons name="chatbubble-ellipses-outline" size={13} color={colors.textSecondary} />
-                <Text style={styles.noteText}>"{item.note}"</Text>
-              </View>
-            ) : null}
+            {item.note && (
+              <>
+                <Divider variant="inset" margin={2} />
+                <View style={styles.noteBox}>
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.textSecondary} />
+                  <Text style={styles.noteText}>"{item.note}"</Text>
+                </View>
+              </>
+            )}
 
-            {/* Commission info */}
-            <View style={styles.discountBanner}>
+            <Divider variant="inset" margin={2} />
+
+            <View style={[styles.commissionBox, { backgroundColor: colors.primary + '08' }]}>
               <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
-              <Text style={styles.discountBannerText}>
-                Pay in-app on arrival → driver gets{' '}
-                <Text style={styles.discountBannerBold}>R{Math.round(item.price * 0.88)}</Text>
-                {' '}instantly. Move-Me keeps 12%.
+              <Text style={styles.commissionText}>
+                <Text style={styles.commissionBold}>Pay in-app:</Text>
+                {' '}Driver gets R{Math.round(item.price * 0.88)} (88%) → Move-Me 12%
               </Text>
             </View>
 
-            <View style={styles.offerActions}>
+            <View style={styles.actionRow}>
               <Button
                 label="Chat"
                 onPress={() => handleChat(item)}
                 variant="outline"
+                size="md"
                 style={styles.chatBtn}
               />
               <Button
-                label={accepting ? 'Confirming…' : `Accept — R${item.price}`}
+                label={accepting ? 'Confirming…' : `Accept`}
                 onPress={() => handleAccept(item)}
                 loading={accepting}
+                size="md"
                 style={styles.acceptBtn}
               />
             </View>
-          </View>
+          </Card>
         )}
       />
     </SafeAreaView>
@@ -280,79 +308,234 @@ export default function JobOffersScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  cancelHeaderBtn: { paddingVertical: 4, paddingHorizontal: 2 },
-  cancelHeaderText: { fontSize: 14, fontWeight: '600', color: colors.danger },
-  jobSummary: {
-    backgroundColor: colors.surface, padding: 14, gap: 4,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  routeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  routeText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.text },
-  list: { padding: 16, gap: 14 },
-  listHeader: { marginBottom: 4 },
-  waitingText: { fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' },
-  topText: { fontSize: 13, fontWeight: '700', color: colors.text },
-  empty: { alignItems: 'center', paddingTop: 60, gap: 14 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  emptySubtext: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32, lineHeight: 18 },
 
-  offerCard: {
-    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: colors.border, gap: 12,
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    shadowColor: colors.shadowSm,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  topOffer: {
-    borderColor: colors.accent, borderWidth: 2,
-    shadowColor: colors.accent, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '08',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  cancelBtn: {
+    paddingHorizontal: spacing[2],
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.error,
+  },
+
+  // Route Card
+  routeCard: {
+    marginHorizontal: spacing[4],
+    marginVertical: spacing[4],
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+  },
+  routeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  routeInfo: {
+    flex: 1,
+    gap: spacing[1],
+  },
+  routeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  routeAddress: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    lineHeight: 20,
+  },
+
+  // List
+  listContent: {
+    padding: spacing[4],
+    gap: spacing[3],
+    paddingBottom: spacing[8],
+  },
+  listHeader: {
+    marginBottom: spacing[2],
+  },
+  statusText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  statusTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
+  // Offer Card
+  offerCardWrapper: {
+    marginHorizontal: 0,
+  },
+  topOfferWrapper: {
+    borderColor: colors.accent,
+    borderWidth: 2,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   bestBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    alignSelf: 'flex-start',
+    marginBottom: spacing[3],
+    backgroundColor: colors.accent,
   },
-  bestText: { fontSize: 11, fontWeight: '800', color: colors.black },
+  bestBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.black,
+  },
 
-  offerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  driverPhoto: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: colors.border },
-  driverInfo: { flex: 1, gap: 2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  driverName: { fontSize: 16, fontWeight: '800', color: colors.text },
-  verifiedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+  // Offer Top
+  offerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
   },
-  verifiedText: { fontSize: 10, fontWeight: '700', color: colors.white },
-  ratingNum: { fontSize: 12, color: colors.textSecondary },
-  regNum: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  priceCol: { alignItems: 'center', gap: 6, paddingTop: 2 },
-  price: { fontSize: 26, fontWeight: '900', color: colors.primary },
-  favBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#FFF0F3', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
-    borderWidth: 1, borderColor: '#FECDD3',
+  driverPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: colors.border,
+    flexShrink: 0,
   },
-  favBadgeText: { fontSize: 10, fontWeight: '700', color: '#E11D48' },
+  driverInfo: {
+    flex: 1,
+    gap: spacing[1],
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  driverName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+    flex: 1,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  ratingLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  regNumber: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: spacing[1],
+  },
+  priceCol: {
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  price: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: -0.5,
+  },
 
+  // Note
   noteBox: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
-    backgroundColor: colors.surfaceAlt, borderRadius: 8, padding: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
   },
-  noteText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontStyle: 'italic', lineHeight: 18 },
-
-  discountBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary + '0D', borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: colors.primary + '25',
+  noteText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
-  discountBannerText: { flex: 1, fontSize: 12, color: colors.textSecondary, lineHeight: 16 },
-  discountBannerBold: { fontWeight: '800', color: colors.primary },
 
-  offerActions: { flexDirection: 'row', gap: 10 },
-  chatBtn: { flex: 1 },
-  acceptBtn: { flex: 1.5 },
+  // Commission
+  commissionBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+    borderRadius: radius.md,
+    padding: spacing[3],
+    borderWidth: 1,
+    borderColor: colors.primary + '15',
+  },
+  commissionText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  commissionBold: {
+    fontWeight: '800',
+    color: colors.primary,
+  },
+
+  // Actions
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginTop: spacing[2],
+  },
+  chatBtn: {
+    flex: 1,
+  },
+  acceptBtn: {
+    flex: 1.2,
+  },
 });

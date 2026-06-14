@@ -8,10 +8,14 @@ import { signOut } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadows } from '../../constants/spacing';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
 import Avatar from '../../components/Avatar';
 import StarRating from '../../components/StarRating';
+import Card from '../../components/Card';
+import Badge from '../../components/Badge';
+import Button from '../../components/Button';
 import CityPickerModal from '../../components/CityPickerModal';
 import { updateUser, deleteJobTemplate } from '../../services/userService';
 import { Share } from 'react-native';
@@ -218,97 +222,90 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity
+          onPress={() => (nav as any).navigate('Wallet')}
+          style={styles.walletHeaderBtn}
+        >
+          <Ionicons name="wallet-outline" size={20} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero ── */}
-        <View style={styles.hero}>
-          <TouchableOpacity onPress={pickProfilePhoto} activeOpacity={0.85} style={styles.avatarWrap}>
-            <Avatar name={appUser.name} uri={appUser.profilePhoto} size={96} />
-            <View style={styles.cameraBadge}>
-              {uploadingPhoto
-                ? <ActivityIndicator size={12} color={colors.white} />
-                : <Ionicons name="camera" size={14} color={colors.white} />}
-            </View>
-          </TouchableOpacity>
+        <Card variant="outlined" padding={0} style={styles.heroCard}>
+          <View style={styles.hero}>
+            <TouchableOpacity onPress={pickProfilePhoto} activeOpacity={0.85} style={styles.avatarWrap}>
+              <Avatar name={appUser.name} uri={appUser.profilePhoto} size="xl" />
+              <View style={styles.cameraBadge}>
+                {uploadingPhoto
+                  ? <ActivityIndicator size={12} color={colors.white} />
+                  : <Ionicons name="camera" size={14} color={colors.white} />}
+              </View>
+            </TouchableOpacity>
 
-          <Text style={styles.heroName}>{appUser.name}</Text>
+            <Text style={styles.heroName}>{appUser.name}</Text>
 
-          <View style={styles.heroMeta}>
-            <View style={styles.rolePill}>
-              <Ionicons
-                name={isDriver ? 'car' : 'cube'}
-                size={13}
-                color={isDriver ? colors.primary : colors.info}
-              />
-              <Text style={[styles.roleText, { color: isDriver ? colors.primary : colors.info }]}>
-                {isDriver ? 'Driver' : 'Sender'}
-              </Text>
+            <View style={styles.heroMeta}>
+              <Badge
+                variant={isDriver ? 'default' : 'info'}
+                size="sm"
+              >
+                <Ionicons
+                  name={isDriver ? 'car' : 'cube'}
+                  size={11}
+                  color={colors.white}
+                />
+                <Text style={styles.badgeText}>
+                  {isDriver ? 'Driver' : 'Sender'}
+                </Text>
+              </Badge>
+              {driverTier && <TierBadge tier={driverTier} size="md" />}
             </View>
-            {driverTier && <TierBadge tier={driverTier} size="md" />}
+
+            {appUser.rating > 0 ? (
+              <View style={styles.ratingSection}>
+                <View style={styles.ratingRow}>
+                  <StarRating value={Math.round(appUser.rating)} size="md" />
+                  <Text style={styles.ratingNum}>{appUser.rating.toFixed(1)}</Text>
+                </View>
+                <Text style={styles.ratingMeta}>{appUser.totalTrips ?? 0} trip{appUser.totalTrips !== 1 ? 's' : ''}</Text>
+              </View>
+            ) : (
+              <Text style={styles.noRating}>No ratings yet</Text>
+            )}
           </View>
-
-          {appUser.rating > 0 ? (
-            <View style={styles.ratingRow}>
-              <StarRating value={Math.round(appUser.rating)} size={18} />
-              <Text style={styles.ratingNum}>{appUser.rating.toFixed(1)}</Text>
-              <Text style={styles.ratingTotal}>· {appUser.totalTrips ?? 0} trip{appUser.totalTrips !== 1 ? 's' : ''}</Text>
-            </View>
-          ) : (
-            <Text style={styles.noRating}>No ratings yet</Text>
-          )}
-        </View>
-
-        {/* ── Wallet card ── */}
-        <TouchableOpacity
-          style={styles.walletCard}
-          onPress={() => (nav as any).navigate('Wallet')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.walletLeft}>
-            <Ionicons name="wallet-outline" size={22} color={colors.white} />
-            <View>
-              <Text style={styles.walletLabel}>Move-Me Wallet</Text>
-              <Text style={styles.walletBalance}>
-                {walletBalance !== null
-                  ? `R ${walletBalance.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`
-                  : 'Tap to open'}
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
+        </Card>
 
         {/* ── Stats ── */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
+        <View style={styles.statsGrid}>
+          <Card variant="outlined" padding={4} style={styles.statCard}>
             <Text style={styles.statValue}>{appUser.totalTrips ?? 0}</Text>
             <Text style={styles.statLabel}>Trips</Text>
-          </View>
-          <View style={[styles.statCard, styles.statDivider]}>
+          </Card>
+          <Card variant="outlined" padding={4} style={styles.statCard}>
             <Text style={styles.statValue}>{appUser.rating > 0 ? appUser.rating.toFixed(1) : '—'}</Text>
             <Text style={styles.statLabel}>Rating</Text>
-          </View>
-          <View style={styles.statCard}>
+          </Card>
+          <Card variant="outlined" padding={4} style={styles.statCard}>
             {isDriver ? (
               <>
                 <Text style={styles.statValue}>
-                  R{(appUser.totalEarned ?? 0).toLocaleString('en-ZA')}
+                  R{Math.round((appUser.totalEarned ?? 0) / 1000)}k
                 </Text>
                 <Text style={styles.statLabel}>Earned</Text>
               </>
             ) : (
               <>
-                <Text style={[styles.statValue, { color: colors.info, fontSize: 16 }]}>Sender</Text>
-                <Text style={styles.statLabel}>Role</Text>
+                <Text style={[styles.statValue, { fontSize: 18 }]}>📦</Text>
+                <Text style={styles.statLabel}>Sender</Text>
               </>
             )}
-          </View>
+          </Card>
         </View>
 
         {/* ── Account info ── */}
-        <View style={styles.section}>
+        <Card variant="outlined" padding={0} style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
 
           <View style={styles.infoRow}>
@@ -351,7 +348,7 @@ export default function ProfileScreen() {
 
         {/* ── Driver: service city ── */}
         {isDriver && (
-          <View style={styles.section}>
+          <Card variant="outlined" padding={0} style={styles.section}>
             <Text style={styles.sectionTitle}>Preferences</Text>
             <TouchableOpacity style={styles.infoRow} onPress={() => setCityPickerOpen(true)} activeOpacity={0.7}>
               <Ionicons name="location-outline" size={18} color={colors.textMuted} />
@@ -368,7 +365,7 @@ export default function ProfileScreen() {
 
         {/* ── Driver: tier progress ── */}
         {isDriver && driverTier && (
-          <View style={styles.section}>
+          <Card variant="outlined" padding={0} style={styles.section}>
             <Text style={styles.sectionTitle}>Driver Tier</Text>
             <View style={styles.tierRow}>
               <TierBadge tier={driverTier} size="md" />
@@ -406,7 +403,7 @@ export default function ProfileScreen() {
 
         {/* ── Sender: saved routes ── */}
         {!isDriver && (appUser.jobTemplates ?? []).length > 0 && (
-          <View style={styles.section}>
+          <Card variant="outlined" padding={0} style={styles.section}>
             <Text style={styles.sectionTitle}>Saved Routes</Text>
             {(appUser.jobTemplates ?? []).map((t, i) => (
               <View key={t.id}>
@@ -437,7 +434,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── Notifications ── */}
-        <View style={styles.section}>
+        <Card variant="outlined" padding={0} style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
 
           <View style={styles.toggleRow}>
@@ -489,7 +486,7 @@ export default function ProfileScreen() {
 
         {/* ── Driver: vehicle ── */}
         {isDriver && (
-          <View style={styles.section}>
+          <Card variant="outlined" padding={0} style={styles.section}>
             <Text style={styles.sectionTitle}>My Bakkie</Text>
 
             <TouchableOpacity
@@ -541,7 +538,7 @@ export default function ProfileScreen() {
 
         {/* ── Driver: payout details ── */}
         {isDriver && (
-          <View style={styles.section}>
+          <Card variant="outlined" padding={0} style={styles.section}>
             <Text style={styles.sectionTitle}>Payout Details</Text>
             <TouchableOpacity
               style={styles.infoRow}
@@ -580,7 +577,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── Referral ── */}
-        <View style={styles.section}>
+        <Card variant="outlined" padding={0} style={styles.section}>
           <Text style={styles.sectionTitle}>Invite friends</Text>
           <View style={styles.infoRow}>
             <Ionicons name="gift-outline" size={18} color={colors.textMuted} />
@@ -729,232 +726,503 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+
+  // Header
   header: {
-    paddingHorizontal: 20, paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: colors.text },
-
-  container: { paddingBottom: 40 },
-
-  // Hero
-  hero: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginBottom: 16,
+    borderBottomColor: colors.borderLight,
+    shadowColor: colors.shadowSm,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  avatarWrap: { position: 'relative', marginBottom: 14 },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  walletHeaderBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '08',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  container: {
+    padding: spacing[4],
+    gap: spacing[4],
+    paddingBottom: spacing[8],
+  },
+
+  // Hero Card
+  heroCard: {
+    marginHorizontal: 0,
+  },
+  hero: {
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[6],
+    paddingHorizontal: spacing[4],
+  },
+  avatarWrap: {
+    position: 'relative',
+  },
   cameraBadge: {
-    position: 'absolute', bottom: 2, right: 2,
-    width: 28, height: 28, borderRadius: 14,
+    position: 'absolute',
+    bottom: spacing[1],
+    right: spacing[1],
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: colors.surface,
   },
-  heroName: { fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 8 },
-  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  rolePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: colors.surfaceAlt, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
+  heroName: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.text,
+    letterSpacing: -0.5,
   },
-  roleText: { fontSize: 13, fontWeight: '700' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingNum: { fontSize: 16, fontWeight: '800', color: colors.text },
-  ratingTotal: { fontSize: 14, color: colors.textMuted },
-  noRating: { fontSize: 14, color: colors.textMuted },
-
-  // Wallet card
-  walletCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: 16, marginBottom: 16,
-    backgroundColor: colors.primary, borderRadius: 16, padding: 18,
-    shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  walletLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  walletLabel: { fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: '600', letterSpacing: 0.4 },
-  walletBalance: { fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 2 },
-
-  // Stats
-  statsRow: {
+  heroMeta: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 16, marginHorizontal: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
+    alignItems: 'center',
+    gap: spacing[2],
   },
-  statCard: { flex: 1, alignItems: 'center', paddingVertical: 16 },
-  statDivider: {
-    borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border,
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
   },
-  statValue: { fontSize: 22, fontWeight: '900', color: colors.text },
-  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.4 },
+  ratingSection: {
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  ratingNum: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  ratingMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  noRating: {
+    fontSize: 14,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    gap: spacing[3],
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[4],
+    marginHorizontal: 0,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
 
   // Sections
   section: {
-    backgroundColor: colors.surface, borderRadius: 16,
-    marginHorizontal: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   sectionTitle: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.6,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    paddingBottom: spacing[2],
   },
   infoRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 16, paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
-  infoContent: { flex: 1 },
-  infoLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 2 },
-  infoValue: { fontSize: 15, fontWeight: '600', color: colors.text },
-  placeholder: { color: colors.textMuted, fontWeight: '400' },
-  rowDivider: { height: 1, backgroundColor: colors.divider, marginLeft: 48 },
+  infoContent: {
+    flex: 1,
+    gap: spacing[1],
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  placeholder: {
+    color: colors.textMuted,
+    fontWeight: '400',
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginLeft: spacing[12],
+  },
 
   // Tier
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-  tierLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
-  tierSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  tierBars: { flexDirection: 'row', gap: 3 },
-  tierBar: { width: 10, height: 28, borderRadius: 4 },
-  tierProgress: {
-    height: 6, backgroundColor: colors.border, borderRadius: 3,
-    marginHorizontal: 16, marginBottom: 14, overflow: 'hidden',
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
-  tierProgressFill: { height: '100%', borderRadius: 3 },
+  tierLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  tierSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing[1],
+  },
+  tierBars: {
+    flexDirection: 'row',
+    gap: spacing[1],
+  },
+  tierBar: {
+    width: 10,
+    height: 24,
+    borderRadius: radius.sm,
+  },
+  tierProgress: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+    marginHorizontal: spacing[4],
+    marginVertical: spacing[3],
+    overflow: 'hidden',
+  },
+  tierProgressFill: {
+    height: '100%',
+    borderRadius: radius.sm,
+  },
 
   // Template rows
   templateRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 16, paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
 
   // Notification toggles
   toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
 
   // Vehicle
-  vehiclePhotoWrap: { position: 'relative' },
+  vehiclePhotoWrap: {
+    position: 'relative',
+  },
   vehiclePhoto: {
-    width: '100%', height: 160,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    width: '100%',
+    height: 160,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   vehiclePhotoEmpty: {
-    width: '100%', height: 100,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt, gap: 6,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    width: '100%',
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    gap: spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  vehiclePhotoEmptyText: { fontSize: 13, color: colors.textMuted },
+  vehiclePhotoEmptyText: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
   pendingOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)', paddingVertical: 6,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingVertical: spacing[2],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  pendingOverlayText: { fontSize: 12, fontWeight: '700', color: colors.white },
+  pendingOverlayText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.white,
+  },
   vehicleCameraBtn: {
-    position: 'absolute', top: 8, right: 8,
-    width: 30, height: 30, borderRadius: 15,
+    position: 'absolute',
+    top: spacing[2],
+    right: spacing[2],
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   lockBadge: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Referral
-  referralCode: { fontSize: 20, fontWeight: '900', color: colors.primary, letterSpacing: 2 },
-  shareCodeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.primary + '12', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 6,
+  referralCode: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 2,
   },
-  shareCodeText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  shareCodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.primary + '12',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+  },
+  shareCodeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
 
   // Leaderboard button
   leaderboardBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: colors.accent + '12', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1, borderColor: colors.accent + '30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.accent + '08',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.accent + '25',
   },
-  leaderboardBtnText: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.accent },
+  leaderboardBtnText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.accent,
+  },
 
   // Sign out
   signOutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 16, marginTop: 4, marginBottom: 8,
-    backgroundColor: colors.surface, borderRadius: 14,
-    paddingVertical: 16, borderWidth: 1, borderColor: colors.danger + '40',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.error + '25',
   },
-  signOutText: { fontSize: 15, fontWeight: '700', color: colors.danger },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.error,
+  },
 
   // Bank modal
   modalHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  modalBody: { padding: 20, gap: 6, paddingBottom: 40 },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalBody: {
+    padding: spacing[4],
+    gap: spacing[1],
+    paddingBottom: spacing[8],
+  },
   bankFieldLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 14, marginBottom: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
   },
   bankInput: {
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13,
-    fontSize: 15, color: colors.text,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    fontSize: 15,
+    color: colors.text,
   },
   bankPickerBtn: {
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  bankPickerText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  bankPickerText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
+  },
   bankList: {
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, overflow: 'hidden', marginTop: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    marginTop: spacing[2],
   },
   bankListItem: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: colors.divider,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
-  bankListItemActive: { backgroundColor: colors.primary + '0A' },
-  bankListItemText: { fontSize: 15, color: colors.text, fontWeight: '500' },
-  accountTypeRow: { flexDirection: 'row', gap: 10 },
+  bankListItemActive: {
+    backgroundColor: colors.primary + '0A',
+  },
+  bankListItemText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  accountTypeRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
   accountTypeBtn: {
-    flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    flex: 1,
+    paddingVertical: spacing[3],
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  accountTypeBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '0A' },
-  accountTypeBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  accountTypeBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '0A',
+  },
+  accountTypeBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
   saveBankBtn: {
-    backgroundColor: colors.primary, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginTop: 24,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    marginTop: spacing[6],
   },
-  saveBankBtnText: { fontSize: 16, fontWeight: '800', color: colors.white },
+  saveBankBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.white,
+  },
 
   // Footer
   footer: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[4],
   },
-  footerText: { fontSize: 12, color: colors.textMuted },
-  footerDot: { fontSize: 12, color: colors.textMuted },
-  footerLink: { fontSize: 12, color: colors.primary, fontWeight: '600' },
+  footerText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  footerDot: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  footerLink: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+  },
 });
