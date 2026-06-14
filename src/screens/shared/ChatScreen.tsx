@@ -10,11 +10,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
 import { listenToMessages, sendMessage } from '../../services/jobService';
 import { sendPushNotification } from '../../services/notificationService';
 import { uploadPhoto } from '../../services/storageService';
 import { Message } from '../../types';
 import Input from '../../components/Input';
+import Badge from '../../components/Badge';
 import { useAuth } from '../../hooks/useAuth';
 
 type ChatParams = {
@@ -185,11 +187,11 @@ export default function ChatScreen() {
     >
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => nav.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{otherName}</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ width: 40 }} />
         </View>
 
         <FlatList
@@ -283,72 +285,218 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  kav: { flex: 1, backgroundColor: colors.background },
-  safe: { flex: 1 },
+  kav: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  safe: {
+    flex: 1,
+  },
+
+  // Header
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    shadowColor: colors.shadowSm,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  msgList: { padding: 16, gap: 8, paddingBottom: 8 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary + '08',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
 
-  // Bubbles
-  bubble: { maxWidth: '75%', borderRadius: 16, padding: 12 },
-  bubbleMine: { alignSelf: 'flex-end', backgroundColor: colors.primary, borderBottomRightRadius: 4 },
+  // Message List
+  msgList: {
+    padding: spacing[4],
+    gap: spacing[3],
+    paddingBottom: spacing[3],
+  },
+
+  // Message Bubbles
+  bubble: {
+    maxWidth: '75%',
+    borderRadius: radius.lg,
+    padding: spacing[3],
+  },
+  bubbleMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.primary,
+    borderBottomRightRadius: radius.sm,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   bubbleOther: {
-    alignSelf: 'flex-start', backgroundColor: colors.surface,
-    borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.border,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  bubbleText: { fontSize: 15 },
-  bubbleTextMine: { color: colors.white },
-  bubbleTextOther: { color: colors.text },
-  msgImage: { width: 200, height: 150, borderRadius: 10, marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, alignSelf: 'flex-end' },
-  timestamp: { fontSize: 10, color: colors.textMuted },
-  timestampMine: { color: 'rgba(255,255,255,0.7)' },
+  bubbleText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  bubbleTextMine: {
+    color: colors.white,
+    fontWeight: '500',
+  },
+  bubbleTextOther: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  msgImage: {
+    width: 200,
+    height: 150,
+    borderRadius: radius.lg,
+    marginBottom: spacing[2],
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    marginTop: spacing[2],
+    alignSelf: 'flex-end',
+  },
+  timestamp: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+  timestampMine: {
+    color: 'rgba(255,255,255,0.7)',
+  },
 
-  // Quote
+  // Quote Badge
   quoteBadge: {
-    backgroundColor: colors.accent, borderRadius: 8, padding: 8, marginBottom: 6, alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    padding: spacing[2],
+    marginBottom: spacing[2],
+    alignItems: 'center',
   },
-  quoteLabel: { fontSize: 10, fontWeight: '700', color: colors.black, textTransform: 'uppercase', letterSpacing: 0.5 },
-  quoteAmount: { fontSize: 24, fontWeight: '900', color: colors.black },
+  quoteLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.black,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  quoteAmount: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.black,
+    letterSpacing: -0.5,
+  },
 
-  // Greeting suggestions
-  greetingsWrap: { marginTop: 24 },
+  // Greeting Suggestions
+  greetingsWrap: {
+    marginTop: spacing[6],
+  },
   greetingsLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, paddingHorizontal: 16,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing[3],
+    paddingHorizontal: spacing[4],
   },
-  greetingsRow: { gap: 8, paddingHorizontal: 16 },
+  greetingsRow: {
+    gap: spacing[2],
+    paddingHorizontal: spacing[4],
+  },
   chip: {
-    backgroundColor: colors.surface, borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 9,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.text },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
 
-  // Emoji panel
+  // Emoji Panel
   emojiPanel: {
     backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    paddingVertical: spacing[2],
   },
-  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
-  emojiBtn: { width: '12.5%', alignItems: 'center', paddingVertical: 8 },
-  emoji: { fontSize: 24 },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing[2],
+  },
+  emojiBtn: {
+    width: '12.5%',
+    alignItems: 'center',
+    paddingVertical: spacing[2],
+  },
+  emoji: {
+    fontSize: 24,
+  },
 
-  // Input area
+  // Input Area
   inputArea: {
-    paddingHorizontal: 12, paddingVertical: 10,
-    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
   },
-  messageRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  iconBtn: { width: 38, height: 50, alignItems: 'center', justifyContent: 'center' },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing[2],
+  },
+  iconBtn: {
+    width: 40,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+  },
   sendBtn: {
-    width: 46, height: 50, borderRadius: 10,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  sendBtnDisabled: { backgroundColor: colors.border },
+  sendBtnDisabled: {
+    backgroundColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
 });
