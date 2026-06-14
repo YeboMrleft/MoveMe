@@ -187,39 +187,31 @@ export default function TripActiveScreen() {
     ]);
   };
 
-  const handleCompleteTrip = () => {
-    Alert.alert('Complete trip?', 'Take a photo of the delivered goods as proof of delivery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Take Photo & Complete',
-        onPress: async () => {
-          const uri = await takePhoto();
-          if (!uri) {
-            Alert.alert(
-              'Photo required',
-              'A delivery photo protects you in case of disputes.',
-              [
-                { text: 'Try Again', onPress: handleCompleteTrip },
-                {
-                  text: 'Skip (not recommended)',
-                  style: 'destructive',
-                  onPress: doCompleteTrip,
-                },
-              ]
-            );
-            return;
-          }
-          setDeliveryPhotoUri(uri);
-          setUploadingPhoto(true);
-          let deliveryPhotoUrl: string | undefined;
-          try {
-            deliveryPhotoUrl = await uploadPhoto(uri, `jobs/${jobId}/delivery`);
-          } catch {}
-          setUploadingPhoto(false);
-          doCompleteTrip(deliveryPhotoUrl);
-        },
-      },
-    ]);
+  const handleCompleteTrip = async () => {
+    const uri = await takePhoto();
+    if (!uri) {
+      Alert.alert(
+        'Photo Required',
+        'Proof of delivery is mandatory. This protects both you and the customer in case of disputes.\n\nPlease take a photo of the delivered goods.',
+        [{ text: 'Try Again', onPress: handleCompleteTrip }]
+      );
+      return;
+    }
+
+    setDeliveryPhotoUri(uri);
+    setUploadingPhoto(true);
+    let deliveryPhotoUrl: string | undefined;
+    try {
+      deliveryPhotoUrl = await uploadPhoto(uri, `jobs/${jobId}/delivery`);
+    } catch {
+      setUploadingPhoto(false);
+      Alert.alert('Upload Failed', 'Could not upload photo. Please try again.', [
+        { text: 'Retry', onPress: handleCompleteTrip },
+      ]);
+      return;
+    }
+    setUploadingPhoto(false);
+    await doCompleteTrip(deliveryPhotoUrl);
   };
 
   const doCompleteTrip = async (deliveryPhotoUrl?: string) => {
