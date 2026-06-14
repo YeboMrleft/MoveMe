@@ -247,10 +247,7 @@ export default function ProfileScreen() {
             <Text style={styles.heroName}>{appUser.name}</Text>
 
             <View style={styles.heroMeta}>
-              <Badge
-                variant={isDriver ? 'default' : 'info'}
-                size="sm"
-              >
+              <View style={[styles.roleBadge, { backgroundColor: isDriver ? colors.primary : colors.info }]}>
                 <Ionicons
                   name={isDriver ? 'car' : 'cube'}
                   size={11}
@@ -259,7 +256,7 @@ export default function ProfileScreen() {
                 <Text style={styles.badgeText}>
                   {isDriver ? 'Driver' : 'Sender'}
                 </Text>
-              </Badge>
+              </View>
               {driverTier && <TierBadge tier={driverTier} size="md" />}
             </View>
 
@@ -799,6 +796,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
   },
   badgeText: {
     fontSize: 11,

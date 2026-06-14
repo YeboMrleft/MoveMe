@@ -216,10 +216,10 @@ export default function JobOffersScreen() {
             style={[styles.offerCardWrapper, index === 0 && styles.topOfferWrapper]}
           >
             {index === 0 && (
-              <Badge variant="default" size="sm" style={styles.bestBadge}>
-                <Ionicons name="trophy" size={12} color={colors.white} />
+              <View style={styles.bestBadge}>
+                <Ionicons name="trophy" size={12} color={colors.black} />
                 <Text style={styles.bestBadgeText}>Best Match</Text>
-              </Badge>
+              </View>
             )}
 
             <View style={styles.offerTop}>
@@ -232,10 +232,10 @@ export default function JobOffersScreen() {
                 <View style={styles.nameRow}>
                   <Text style={styles.driverName} numberOfLines={1}>{item.driverName}</Text>
                   {item.verificationStatus === 'verified' && (
-                    <Badge variant="default" size="sm">
+                    <View style={styles.verifiedBadge}>
                       <Ionicons name="shield-checkmark" size={10} color={colors.white} />
                       <Text style={styles.badgeText}>Verified</Text>
-                    </Badge>
+                    </View>
                   )}
                 </View>
                 <View style={styles.ratingRow}>
@@ -459,6 +459,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text,
     flex: 1,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing[1],
+    paddingVertical: spacing[0],
   },
   badgeText: {
     fontSize: 10,
