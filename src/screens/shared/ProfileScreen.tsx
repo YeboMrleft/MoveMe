@@ -344,7 +344,7 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
-        </View>
+        </Card>
 
         {/* ── Driver: service city ── */}
         {isDriver && (
@@ -360,7 +360,7 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.border} />
             </TouchableOpacity>
-          </View>
+          </Card>
         )}
 
         {/* ── Driver: tier progress ── */}
