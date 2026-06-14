@@ -8,10 +8,13 @@ import { useNavigation } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadows } from '../../constants/spacing';
 import { listenToDriverConversations, listenToUserConversations } from '../../services/jobService';
 import { useAuth } from '../../hooks/useAuth';
 import { Conversation } from '../../types';
 import Avatar from '../../components/Avatar';
+import Card from '../../components/Card';
+import Badge from '../../components/Badge';
 
 function timeAgo(ts?: number): string {
   if (!ts) return '';
@@ -45,19 +48,23 @@ export default function ConversationsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['right', 'bottom', 'left']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Messages</Text>
         </View>
-        <ActivityIndicator style={{ flex: 1 }} color={colors.primary} size="large" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>Loading conversations...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['right', 'bottom', 'left']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
+        <Text style={styles.headerSub}>Active conversations</Text>
       </View>
 
       <FlatList
@@ -65,22 +72,24 @@ export default function ConversationsScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="chatbubbles-outline" size={64} color={colors.border} />
-            <Text style={styles.emptyTitle}>No messages yet</Text>
+          <View style={styles.emptyState}>
+            <Ionicons name="chatbubbles-outline" size={56} color={colors.border} />
+            <Text style={styles.emptyTitle}>No Messages Yet</Text>
             <Text style={styles.emptyText}>
               {isDriver
-                ? 'When a sender starts a chat with you after your offer, it will appear here.'
-                : 'Start a chat with a driver from the offers screen.'}
+                ? 'Chats with senders will appear here after they respond to your offer.'
+                : 'Message drivers from the offers screen to discuss job details.'}
             </Text>
           </View>
         }
         renderItem={({ item }) => {
           const otherName = isDriver ? item.userName : item.driverName;
-          const hasUnread = !item.lastMessage;
+          const isUnread = !item.lastMessage;
+
           return (
-            <TouchableOpacity
-              style={styles.row}
+            <Card
+              variant="outlined"
+              padding={4}
               onPress={() =>
                 nav.navigate('Chat', {
                   conversationId: item.id,
@@ -89,33 +98,47 @@ export default function ConversationsScreen() {
                   otherUserId: isDriver ? item.userId : item.driverId,
                 })
               }
-              activeOpacity={0.75}
+              style={styles.conversationCard}
             >
-              <Avatar name={otherName} size={50} />
+              <View style={styles.conversationContent}>
+                <Avatar
+                  name={otherName}
+                  size="md"
+                  status={isUnread ? 'online' : undefined}
+                  showBadge={isUnread}
+                />
 
-              <View style={styles.rowContent}>
-                <View style={styles.rowTop}>
-                  <Text style={styles.name} numberOfLines={1}>{otherName}</Text>
-                  <Text style={styles.time}>{timeAgo(item.lastMessageAt)}</Text>
+                <View style={styles.conversationMain}>
+                  <View style={styles.conversationHeader}>
+                    <Text style={[styles.conversationName, isUnread && styles.conversationNameUnread]}>
+                      {otherName}
+                    </Text>
+                    <Text style={styles.conversationTime}>{timeAgo(item.lastMessageAt)}</Text>
+                  </View>
+
+                  <View style={styles.conversationFooter}>
+                    <Text
+                      style={[styles.conversationPreview, isUnread && styles.conversationPreviewUnread]}
+                      numberOfLines={1}
+                    >
+                      {item.lastMessage || 'No messages yet'}
+                    </Text>
+                    {item.quotedPrice && (
+                      <Badge
+                        label={`R${item.quotedPrice}`}
+                        variant="info"
+                        size="sm"
+                      />
+                    )}
+                  </View>
                 </View>
 
-                <View style={styles.rowBottom}>
-                  <Text style={styles.preview} numberOfLines={1}>
-                    {item.lastMessage ?? 'No messages yet'}
-                  </Text>
-                  {item.quotedPrice ? (
-                    <View style={styles.priceBadge}>
-                      <Text style={styles.priceText}>R{item.quotedPrice}</Text>
-                    </View>
-                  ) : null}
-                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </View>
-
-              <Ionicons name="chevron-forward" size={18} color={colors.border} />
-            </TouchableOpacity>
+            </Card>
           );
         }}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        scrollIndicatorInsets={{ right: 1 }}
       />
     </SafeAreaView>
   );
@@ -123,31 +146,116 @@ export default function ConversationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+
+  // Header
   header: {
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4],
     backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    shadowColor: colors.shadowSm,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: colors.text },
-  list: { flexGrow: 1 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 60, gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  row: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    backgroundColor: colors.background, gap: 14,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
   },
-  rowContent: { flex: 1 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text, flex: 1 },
-  time: { fontSize: 12, color: colors.textMuted, marginLeft: 8 },
-  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  preview: { flex: 1, fontSize: 13, color: colors.textSecondary },
-  priceBadge: {
-    backgroundColor: colors.primary + '20',
-    borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
+  headerSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginTop: spacing[1],
   },
-  priceText: { fontSize: 11, fontWeight: '700', color: colors.primary },
-  separator: { height: 1, backgroundColor: colors.border, marginLeft: 80 },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[3],
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+
+  // List
+  list: {
+    padding: spacing[4],
+    gap: spacing[3],
+    paddingBottom: spacing[8],
+  },
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[4],
+    gap: spacing[4],
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Conversation Card
+  conversationCard: {
+    marginHorizontal: 0,
+  },
+  conversationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  conversationMain: {
+    flex: 1,
+    gap: spacing[2],
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  conversationName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+  },
+  conversationNameUnread: {
+    fontWeight: '800',
+  },
+  conversationTime: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginLeft: spacing[2],
+  },
+  conversationFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  conversationPreview: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  conversationPreviewUnread: {
+    color: colors.text,
+    fontWeight: '500',
+  },
 });
