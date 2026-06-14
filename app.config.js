@@ -34,7 +34,6 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     extra: {
-      googleMapsKey: process.env.GOOGLE_MAPS_KEY,
       mapboxToken: process.env.MAPBOX_TOKEN,
       eas: {
         projectId: 'd13450bb-226f-4b10-ba56-35bf3fda5b21',

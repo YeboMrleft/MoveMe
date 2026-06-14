@@ -876,6 +876,114 @@
   @media (max-width: 768px) { .faq-grid { grid-template-columns: 1fr !important; } }
 </style>
 
+<!-- ── Founding Driver Registration ── -->
+<section id="driver" style="background:#0D0D0D;padding:72px 5%;position:relative;overflow:hidden;">
+
+  <!-- SA flag top bar -->
+  <div style="position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#009A44 25%,#FFB612 25% 50%,#DE3831 50% 75%,#002395 75%);"></div>
+
+  <div style="max-width:640px;margin:0 auto;text-align:center;">
+
+    <div style="display:inline-block;background:var(--gold);color:var(--black);font-family:'Montserrat',sans-serif;font-weight:900;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;padding:6px 18px;border-radius:50px;margin-bottom:20px;">
+      🔒 Founding Drivers Only — Limited Spots
+    </div>
+
+    <h2 style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.9rem,5vw,2.8rem);color:#fff;line-height:1.1;margin-bottom:12px;">
+      Be First. Pay Less. <span style="color:var(--gold);">Forever.</span>
+    </h2>
+
+    <p style="color:rgba(255,255,255,0.65);font-size:1rem;line-height:1.7;margin-bottom:8px;">
+      Move-Me hasn't launched yet — and that's your advantage.
+    </p>
+    <p style="color:rgba(255,255,255,0.65);font-size:1rem;line-height:1.7;margin-bottom:32px;">
+      The first drivers to sign up are locked in at <strong style="color:var(--gold);">8% commission — permanently</strong>, while the standard rate will be 12%. Register now, get verified early, and start earning the moment we go live.
+    </p>
+
+    <!-- Feature pills -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:36px;">
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">✅ Free to join</span>
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">💰 You set your price</span>
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">🕐 Work when you want</span>
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">📍 Live job demand map</span>
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">💳 In-app wallet payments</span>
+      <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:0.82rem;font-weight:600;padding:7px 14px;border-radius:50px;">🛡️ Founding Driver badge</span>
+    </div>
+
+    <!-- Form -->
+    <div id="reg-form-wrap" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:32px;text-align:left;">
+      <p style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:#fff;margin-bottom:20px;text-align:center;">
+        Register your interest — takes 30 seconds
+      </p>
+
+      <form id="driver-form" onsubmit="submitDriverForm(event)" novalidate>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Full Name *</label>
+          <input id="f-name" type="text" required autocomplete="name"
+            placeholder="e.g. Sipho Dlamini"
+            style="width:100%;padding:13px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:1rem;outline:none;font-family:'Open Sans',sans-serif;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">WhatsApp Number *</label>
+          <input id="f-phone" type="tel" required autocomplete="tel"
+            placeholder="e.g. 073 123 4567"
+            style="width:100%;padding:13px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:1rem;outline:none;font-family:'Open Sans',sans-serif;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">City / Town *</label>
+          <input id="f-city" type="text" required
+            placeholder="e.g. Johannesburg, Cape Town, Durban"
+            style="width:100%;padding:13px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:1rem;outline:none;font-family:'Open Sans',sans-serif;">
+        </div>
+
+        <div style="margin-bottom:24px;">
+          <label style="display:block;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Bakkie Type</label>
+          <select id="f-bakkie"
+            style="width:100%;padding:13px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:#1a1a1a;color:rgba(255,255,255,0.85);font-size:1rem;outline:none;font-family:'Open Sans',sans-serif;">
+            <option value="">Select your vehicle</option>
+            <option value="half_ton">Standard Bakkie (Half-ton)</option>
+            <option value="one_ton">1-Ton Bakkie</option>
+            <option value="one_half_ton">1.5-Ton Bakkie</option>
+            <option value="two_ton">2-Ton Bakkie / Light Truck</option>
+            <option value="flatbed">Flatbed / Open Body</option>
+          </select>
+        </div>
+
+        <div id="form-error" style="display:none;background:rgba(224,60,49,0.15);border:1px solid rgba(224,60,49,0.4);border-radius:8px;padding:10px 14px;color:#ff6b6b;font-size:0.88rem;margin-bottom:14px;"></div>
+
+        <button type="submit" id="reg-btn"
+          style="width:100%;padding:16px;border-radius:12px;border:none;background:var(--gold);color:var(--black);font-family:'Montserrat',sans-serif;font-weight:900;font-size:1rem;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;transition:all 0.2s;">
+          🚀 Register as a Founding Driver
+        </button>
+
+        <p style="color:rgba(255,255,255,0.3);font-size:0.75rem;margin-top:12px;text-align:center;">
+          No payment required. We'll contact you on WhatsApp when we go live.
+        </p>
+      </form>
+    </div>
+
+    <!-- Success state -->
+    <div id="reg-success" style="display:none;background:rgba(0,122,77,0.15);border:1px solid rgba(0,122,77,0.4);border-radius:20px;padding:40px 32px;text-align:center;">
+      <div style="font-size:56px;margin-bottom:16px;">🎉</div>
+      <h3 style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.5rem;color:#fff;margin-bottom:10px;">You're in!</h3>
+      <p id="success-name" style="color:var(--gold);font-weight:700;font-size:1.1rem;margin-bottom:12px;"></p>
+      <p style="color:rgba(255,255,255,0.65);font-size:0.95rem;line-height:1.7;">
+        You've secured your <strong style="color:#fff;">Founding Driver</strong> spot and your permanent <strong style="color:var(--gold);">8% commission rate</strong>.<br><br>
+        We'll reach out on WhatsApp to complete your verification before launch day.
+      </p>
+      <div style="margin-top:24px;background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;">
+        <p style="color:rgba(255,255,255,0.5);font-size:0.82rem;margin-bottom:8px;">While you wait — download the app and explore:</p>
+        <a href="#download" style="background:var(--gold);color:var(--black);font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.9rem;padding:11px 24px;border-radius:50px;text-decoration:none;display:inline-block;">
+          ⬇ Download the App
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
 <!-- ── Download ── -->
 <section class="download-section" id="download">
   <div class="download-inner">
@@ -927,5 +1035,82 @@
   <p>© 2025 Move-Me · Powered by Inka-Tech Solutions (Pty) Ltd</p>
 </footer>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBEDVcJKxAcWtFA--mdpQSeB2YZnp7myLY',
+    authDomain: 'move-me-acc55.firebaseapp.com',
+    projectId: 'move-me-acc55',
+    storageBucket: 'move-me-acc55.firebasestorage.app',
+    messagingSenderId: '210160636128',
+    appId: '1:210160636128:web:4f11a421adf32789bf8085',
+  });
+  const db = firebase.firestore();
+
+  async function submitDriverForm(e) {
+    e.preventDefault();
+    const btn = document.getElementById('reg-btn');
+    const errBox = document.getElementById('form-error');
+    errBox.style.display = 'none';
+
+    const name    = document.getElementById('f-name').value.trim();
+    const phone   = document.getElementById('f-phone').value.trim();
+    const city    = document.getElementById('f-city').value.trim();
+    const bakkie  = document.getElementById('f-bakkie').value;
+
+    if (!name || name.length < 2) {
+      errBox.textContent = 'Please enter your full name.';
+      errBox.style.display = 'block'; return;
+    }
+    const cleaned = phone.replace(/\s+/g, '');
+    if (!cleaned || cleaned.length < 9) {
+      errBox.textContent = 'Please enter a valid WhatsApp number.';
+      errBox.style.display = 'block'; return;
+    }
+    if (!city) {
+      errBox.textContent = 'Please enter your city or town.';
+      errBox.style.display = 'block'; return;
+    }
+
+    btn.textContent = 'Registering…';
+    btn.disabled = true;
+
+    try {
+      await db.collection('driverLeads').add({
+        name, phone: cleaned, city,
+        bakkieType: bakkie || null,
+        status: 'new',
+        source: 'website',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      document.getElementById('reg-form-wrap').style.display = 'none';
+      document.getElementById('success-name').textContent =
+        'Welcome aboard, ' + name.split(' ')[0] + '! 🚛';
+      document.getElementById('reg-success').style.display = 'block';
+
+      // Scroll success into view
+      document.getElementById('reg-success').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (err) {
+      errBox.textContent = 'Something went wrong. Please try again.';
+      errBox.style.display = 'block';
+      btn.textContent = '🚀 Register as a Founding Driver';
+      btn.disabled = false;
+    }
+  }
+
+  // Smooth scroll anchor handling
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', function(e) {
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+</script>
 </body>
 </html>

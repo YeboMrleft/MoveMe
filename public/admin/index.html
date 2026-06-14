@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Move-Me Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green:     #1A5F2B;
+      --green-mid: #2D8B3E;
+      --gold:      #E8B500;
+      --danger:    #DC2626;
+      --success:   #059669;
+      --warning:   #D97706;
+      --bg:        #F0F2F5;
+      --surface:   #FFFFFF;
+      --border:    #E5E7EB;
+      --text:      #111827;
+      --muted:     #6B7280;
+      --sidebar-w: 220px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    h1,h2,h3,h4,h5 { font-family: 'Montserrat', sans-serif; }
+
+    /* ── Login ─────────────────────────────────────────────────────── */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0d3d19 0%, var(--green) 100%);
+      padding: 20px;
+    }
+    .login-card {
+      background: white; border-radius: 20px; padding: 40px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-logo { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--green); text-align: center; }
+    .login-logo span { color: var(--gold); }
+    .login-badge {
+      background: var(--green); color: white; font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px; padding: 4px 14px;
+      border-radius: 50px; display: block; text-align: center;
+      width: fit-content; margin: 6px auto 28px;
+    }
+    .fg { margin-bottom: 14px; }
+    .fg label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .fg input {
+      width: 100%; padding: 11px 13px; border-radius: 10px;
+      border: 1.5px solid var(--border); font-size: 0.95rem; font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color 0.2s;
+    }
+    .fg input:focus { border-color: var(--green); }
+    .login-btn {
+      width: 100%; padding: 13px; border-radius: 12px; border: none;
+      background: var(--green); color: white; font-family: 'Montserrat', sans-serif;
+      font-weight: 800; font-size: 0.95rem; text-transform: uppercase; cursor: pointer;
+      transition: background 0.2s; margin-top: 6px;
+    }
+    .login-btn:hover { background: var(--green-mid); }
+    #login-error {
+      background: #FEE2E2; border: 1px solid #FECACA; border-radius: 8px;
+      color: var(--danger); font-size: 0.85rem; padding: 9px 13px; margin-top: 10px; display: none;
+    }
+
+    /* ── App shell ─────────────────────────────────────────────────── */
+    #admin-panel { display: none; min-height: 100vh; }
+
+    /* ── Sidebar ───────────────────────────────────────────────────── */
+    .sidebar {
+      position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w);
+      background: var(--green); display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar-logo { padding: 18px 18px 14px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-logo h1 { font-size: 1.25rem; font-weight: 900; color: white; }
+    .sidebar-logo h1 span { color: var(--gold); }
+    .sidebar-logo p { font-size: 0.62rem; font-weight: 700; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px; padding: 10px 18px;
+      cursor: pointer; color: rgba(255,255,255,0.65); font-size: 0.875rem; font-weight: 500;
+      border: none; background: none; width: 100%; text-align: left; transition: all 0.15s;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+    .nav-item.active { background: rgba(255,255,255,0.14); color: white; font-weight: 700; }
+    .nav-item .icon { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
+    .nav-badge {
+      background: var(--danger); color: white; font-size: 0.68rem; font-weight: 800;
+      border-radius: 50px; padding: 1px 6px; min-width: 18px; text-align: center; margin-left: auto;
+    }
+    .sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-user { margin-bottom: 10px; }
+    .sidebar-user-name { font-size: 0.82rem; font-weight: 600; color: white; }
+    .sidebar-user-email { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .signout-btn { color: rgba(255,255,255,0.5); font-size: 0.82rem; border: none; background: none; cursor: pointer; padding: 0; transition: color 0.2s; }
+    .signout-btn:hover { color: #FCA5A5; }
+
+    /* ── Main ──────────────────────────────────────────────────────── */
+    .main { margin-left: var(--sidebar-w); padding: 24px; min-height: 100vh; }
+
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+    .page-header h2 { font-size: 1.4rem; font-weight: 800; }
+    .page-header p { font-size: 0.83rem; color: var(--muted); margin-top: 2px; }
+    .refresh-btn {
+      padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: white; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      color: var(--text); transition: all 0.2s; white-space: nowrap;
+    }
+    .refresh-btn:hover { border-color: var(--green); color: var(--green); }
+
+    /* ── Stat grid ─────────────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .stat-card { background: white; border-radius: 14px; padding: 18px; border: 1px solid var(--border); }
+    .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; margin-bottom: 10px; }
+    .stat-value { font-size: 1.75rem; font-weight: 900; line-height: 1; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); font-weight: 500; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+    /* ── Filter tabs ───────────────────────────────────────────────── */
+    .filter-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: white; padding: 5px; border-radius: 10px; border: 1px solid var(--border); width: fit-content; }
+    .filter-tab { padding: 6px 14px; border-radius: 7px; border: none; background: none; font-size: 0.82rem; font-weight: 600; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .filter-tab.active { background: var(--green); color: white; }
+    .filter-tab:hover:not(.active) { background: var(--bg); color: var(--text); }
+
+    /* ── Data table ────────────────────────────────────────────────── */
+    .data-table { background: white; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+    .t-row { display: grid; padding: 12px 18px; border-bottom: 1px solid var(--border); align-items: center; transition: background 0.12s; }
+    .t-row:last-child { border-bottom: none; }
+    .t-row.clickable { cursor: pointer; }
+    .t-row.clickable:hover { background: #F9FAFB; }
+    .t-head { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; background: #F9FAFB; border-bottom: 1px solid var(--border); }
+
+    /* column templates */
+    .cols-driver   { grid-template-columns: 44px 1fr 130px 100px 70px 90px; gap: 10px; }
+    .cols-sender   { grid-template-columns: 44px 1fr 130px 70px 90px; gap: 10px; }
+    .cols-job      { grid-template-columns: 1fr 1fr 120px 100px 90px; gap: 10px; }
+    .cols-withdraw { grid-template-columns: 1fr 80px 160px 90px 120px; gap: 10px; }
+    .cols-lead     { grid-template-columns: 1fr 130px 110px 100px 90px; gap: 10px; }
+
+    .avatar {
+      width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 0.85rem; color: white;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .row-name { font-weight: 700; font-size: 0.9rem; }
+    .row-sub  { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Badges ────────────────────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 50px; }
+    .b-pending    { background: #FEF3C7; color: #92400E; }
+    .b-verified   { background: #D1FAE5; color: #065F46; }
+    .b-rejected   { background: #FEE2E2; color: #991B1B; }
+    .b-open       { background: #DBEAFE; color: #1E40AF; }
+    .b-completed  { background: #D1FAE5; color: #065F46; }
+    .b-cancelled  { background: #F3F4F6; color: #6B7280; }
+    .b-active     { background: #EDE9FE; color: #5B21B6; }
+    .b-processed  { background: #D1FAE5; color: #065F46; }
+    .b-new        { background: #FEF3C7; color: #92400E; }
+    .b-online     { background: #D1FAE5; color: #065F46; font-size: 0.65rem; margin-top: 3px; }
+
+    /* ── Empty / loading ───────────────────────────────────────────── */
+    .empty { text-align: center; padding: 56px 20px; color: var(--muted); }
+    .empty .ei { font-size: 2.8rem; margin-bottom: 10px; }
+    .empty h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .loading { text-align: center; padding: 44px; color: var(--muted); font-size: 0.88rem; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ─────────────────────────────────────────────────────── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: flex-start; justify-content: center; padding: 20px; overflow-y: auto; }
+    .overlay.open { display: flex; }
+    .modal { background: white; border-radius: 20px; width: 100%; max-width: 840px; margin: auto; overflow: hidden; }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: white; z-index: 1;
+    }
+    .modal-head h3 { font-size: 1.05rem; font-weight: 800; }
+    .modal-close { width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--bg); cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+    .modal-close:hover { background: var(--border); }
+    .modal-body { padding: 22px; }
+    .modal-foot {
+      padding: 14px 22px; border-top: 1px solid var(--border);
+      display: flex; gap: 10px; justify-content: flex-end;
+      position: sticky; bottom: 0; background: white;
+    }
+
+    /* ── Photo grid ────────────────────────────────────────────────── */
+    .sec-title { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 8px; }
+    .sec-title:first-child { margin-top: 0; }
+    .photo-grid   { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .photo-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .photo-card label { font-size: 0.72rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 5px; }
+    .photo-box {
+      width: 100%; aspect-ratio: 3/4; border-radius: 10px; overflow: hidden;
+      background: var(--bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: opacity 0.2s; position: relative;
+    }
+    .photo-box.landscape { aspect-ratio: 4/3; }
+    .photo-box:hover { opacity: 0.85; }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-box .no-photo { text-align: center; color: var(--muted); font-size: 0.78rem; padding: 10px; }
+
+    /* ── Details table ─────────────────────────────────────────────── */
+    .details-card { background: var(--bg); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+    .detail-row { display: flex; padding: 10px 14px; border-bottom: 1px solid var(--border); gap: 10px; align-items: flex-start; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; width: 120px; flex-shrink: 0; padding-top: 1px; }
+    .detail-value { font-size: 0.88rem; font-weight: 600; flex: 1; }
+
+    /* ── Checklist ─────────────────────────────────────────────────── */
+    .checklist { display: flex; flex-direction: column; gap: 7px; }
+    .chk { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; }
+    .chk input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--green); flex-shrink: 0; }
+
+    /* ── Reject options ────────────────────────────────────────────── */
+    .reject-opts { display: flex; flex-direction: column; gap: 8px; }
+    .reject-opt {
+      padding: 13px 15px; border-radius: 10px; border: 1.5px solid var(--border);
+      cursor: pointer; font-size: 0.88rem; text-align: left; background: white; transition: all 0.15s;
+    }
+    .reject-opt:hover { border-color: var(--danger); background: #FEF2F2; color: var(--danger); }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
+    .btn { padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.3px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-primary { background: var(--green); color: white; }
+    .btn-primary:hover { background: var(--green-mid); }
+    .btn-danger  { background: var(--danger); color: white; }
+    .btn-danger:hover  { background: #B91C1C; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #047857; }
+    .btn-ghost   { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-ghost:hover   { border-color: #9CA3AF; }
+    .btn-sm { padding: 5px 11px; font-size: 0.72rem; border-radius: 7px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Lightbox ──────────────────────────────────────────────────── */
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+    .lb-close { position: absolute; top: 14px; right: 18px; font-size: 1.8rem; color: white; cursor: pointer; line-height: 1; }
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .cols-driver { grid-template-columns: 44px 1fr 90px 80px; }
+      .cols-driver span:nth-child(5), .cols-driver span:nth-child(6),
+      .cols-driver div:nth-child(5), .cols-driver div:nth-child(6) { display: none; }
+    }
+    @media (max-width: 680px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { display: none; }
+      .main { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ─────────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Move<span>-Me</span></div>
+    <span class="login-badge">Admin Panel</span>
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="l-email" placeholder="admin@moveme.app" autocomplete="email" />
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="login-btn" onclick="doSignIn()">Sign In</button>
+    <button type="button" onclick="resetPassword()" style="background:none;border:none;color:var(--green);font-size:0.82rem;font-weight:600;cursor:pointer;width:100%;margin-top:10px;text-decoration:underline;">Forgot password?</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── Admin panel ────────────────────────────────────────────────────────── -->
+<div id="admin-panel">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Move<span>-Me</span></h1>
+      <p>Admin Panel</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" id="nav-dashboard"   onclick="go('dashboard')"><span class="icon">📊</span> Dashboard</button>
+      <button class="nav-item"        id="nav-pending"     onclick="go('pending')">  <span class="icon">⏳</span> Pending <span class="nav-badge" id="pending-badge" style="display:none">0</span></button>
+      <button class="nav-item"        id="nav-drivers"     onclick="go('drivers')">  <span class="icon">🚛</span> Drivers</button>
+      <button class="nav-item"        id="nav-senders"     onclick="go('senders')">  <span class="icon">👥</span> Senders</button>
+      <button class="nav-item"        id="nav-jobs"        onclick="go('jobs')">     <span class="icon">📦</span> Jobs</button>
+      <button class="nav-item"        id="nav-withdrawals" onclick="go('withdrawals')"><span class="icon">💳</span> Withdrawals</button>
+      <button class="nav-item"        id="nav-leads"       onclick="go('leads')">    <span class="icon">📋</span> Driver Leads</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-name" id="admin-name">Admin</div>
+        <div class="sidebar-user-email" id="admin-email"></div>
+      </div>
+      <button class="signout-btn" onclick="doSignOut()">↩ Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Dashboard -->
+    <div id="tab-dashboard">
+      <div class="page-header">
+        <div><h2>Dashboard</h2><p>Platform overview</p></div>
+        <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+      </div>
+      <div class="stats-grid" id="stats-grid"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Pending verifications -->
+    <div id="tab-pending" style="display:none">
+      <div class="page-header">
+        <div><h2>Pending Verifications</h2><p>Drivers awaiting approval</p></div>
+        <button class="refresh-btn" onclick="loadPending()">↻ Refresh</button>
+      </div>
+      <div class="data-table" id="pending-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Drivers -->
+    <div id="tab-drivers" style="display:none">
+      <div class="page-header">
+        <div><h2>Drivers</h2><p>All registered drivers</p></div>
+        <button class="refresh-btn" onclick="loadDrivers(drvFilter)">↻ Refresh</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" id="df-all"      onclick="loadDrivers('all')">All</button>
+        <button class="filter-tab"        id="df-verified" onclick="loadDrivers('verified')">Verified</button>
+        <button class="filter-tab"        id="df-pending"  onclick="loadDrivers('pending')">Pending</button>
+        <button class="filter-tab"        id="df-rejected" onclick="loadDrivers('rejected')">Rejected</button>
+      </div>
+      <div class="data-table" id="drivers-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Senders -->
+    <div id="tab-senders" style="display:none">
+      <div class="page-header">
+        <div><h2>Senders</h2><p>All registered customers</p></div>
+        <button class="refresh-btn" onclick="loadSenders()">↻ Refresh</button>
+      </div>
+      <div class="data-table" id="senders-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Jobs -->
+    <div id="tab-jobs" style="display:none">
+      <div class="page-header">
+        <div><h2>Jobs</h2><p>All posted jobs (latest 150)</p></div>
+        <button class="refresh-btn" onclick="loadJobs(jobFilter)">↻ Refresh</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" id="jf-all"       onclick="loadJobs('all')">All</button>
+        <button class="filter-tab"        id="jf-open"      onclick="loadJobs('open')">Open</button>
+        <button class="filter-tab"        id="jf-active"    onclick="loadJobs('active')">Active</button>
+        <button class="filter-tab"        id="jf-completed" onclick="loadJobs('completed')">Completed</button>
+        <button class="filter-tab"        id="jf-cancelled" onclick="loadJobs('cancelled')">Cancelled</button>
+      </div>
+      <div class="data-table" id="jobs-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Withdrawals -->
+    <div id="tab-withdrawals" style="display:none">
+      <div class="page-header">
+        <div><h2>Withdrawals</h2><p>Driver payout requests</p></div>
+        <button class="refresh-btn" onclick="loadWithdrawals()">↻ Refresh</button>
+      </div>
+      <div class="data-table" id="withdrawals-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+    <!-- Driver leads -->
+    <div id="tab-leads" style="display:none">
+      <div class="page-header">
+        <div><h2>Driver Leads</h2><p>Founding driver sign-ups from the website</p></div>
+        <button class="refresh-btn" onclick="loadLeads()">↻ Refresh</button>
+      </div>
+      <div class="data-table" id="leads-list"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Driver review modal ────────────────────────────────────────────────── -->
+<div class="overlay" id="driver-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3 id="modal-name">Driver Review</h3>
+        <div id="modal-status" style="margin-top:4px"></div>
+      </div>
+      <button class="modal-close" onclick="closeDriverModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="loading"><div class="spinner"></div>Loading…</div>
+    </div>
+    <div class="modal-foot" id="modal-foot" style="display:none">
+      <button class="btn btn-ghost" onclick="closeDriverModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="openRejectModal()">✕ Reject</button>
+      <button class="btn btn-primary" id="approve-btn" onclick="doApprove()">✓ Approve Driver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reject reason modal ────────────────────────────────────────────────── -->
+<div class="overlay" id="reject-overlay">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head">
+      <h3>Rejection Reason</h3>
+      <button class="modal-close" onclick="closeRejectModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">This reason will be sent to the driver.</p>
+      <div class="reject-opts">
+        <button class="reject-opt" onclick="doReject('Your ID document photo was unclear. Please resubmit with a clearer photo.')">🪪 ID unclear / unreadable</button>
+        <button class="reject-opt" onclick="doReject('Your selfie does not match the ID document provided.')">🤳 Face does not match ID</button>
+        <button class="reject-opt" onclick="doReject('One or more of your vehicle documents were unclear. Please resubmit clearer photos.')">📋 Licence / disc / plate unclear</button>
+        <button class="reject-opt" onclick="doReject('Your bakkie photos were unclear or incomplete. Please submit all 4 angles clearly.')">🚛 Vehicle photos insufficient</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Lightbox ───────────────────────────────────────────────────────────── -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lb-close">✕</span>
+  <img id="lb-img" src="" alt="" />
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey: 'AIzaSyBEDVcJKxAcWtFA--mdpQSeB2YZnp7myLY',
+  authDomain: 'move-me-acc55.firebaseapp.com',
+  projectId: 'move-me-acc55',
+  storageBucket: 'move-me-acc55.firebasestorage.app',
+  messagingSenderId: '210160636128',
+  appId: '1:210160636128:web:4f11a421adf32789bf8085',
+});
+
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const FS   = firebase.firestore.FieldValue;
+
+let drvFilter = 'all';
+let jobFilter = 'all';
+let modalDriverId   = null;
+let modalDriverData = null;
+let unsubPending    = null;
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (!user) { showLogin(); return; }
+  const snap = await db.collection('users').doc(user.uid).get();
+  if (!snap.exists) {
+    await auth.signOut();
+    loginErr(`No user profile found. UID: ${user.uid} — add a users document with this ID and set isAdmin: true.`);
+    showLogin(); return;
+  }
+  if (!snap.data().isAdmin) {
+    await auth.signOut();
+    loginErr(`Access denied. UID: ${user.uid} — open Firestore, find users/${user.uid}, and set isAdmin: true (boolean).`);
+    showLogin(); return;
+  }
+  document.getElementById('admin-name').textContent  = snap.data().name || 'Admin';
+  document.getElementById('admin-email').textContent = user.email;
+  showPanel();
+  go('dashboard');
+  startBadge();
+});
+
+function showLogin() {
+  document.getElementById('login-screen').style.display  = 'flex';
+  document.getElementById('admin-panel').style.display   = 'none';
+}
+function showPanel() {
+  document.getElementById('login-screen').style.display  = 'none';
+  document.getElementById('admin-panel').style.display   = 'block';
+}
+
+async function doSignIn() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  document.getElementById('login-error').style.display = 'none';
+  if (!email || !pass) { loginErr('Enter email and password.'); return; }
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (e) {
+    loginErr(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(e.code)
+      ? 'Incorrect email or password.' : e.message);
+  }
+}
+function loginErr(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function resetPassword() {
+  const email = document.getElementById('l-email').value.trim();
+  if (!email) { loginErr('Enter your email address first, then click Forgot password.'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    const el = document.getElementById('login-error');
+    el.style.background = '#D1FAE5'; el.style.borderColor = '#6EE7B7'; el.style.color = '#065F46';
+    el.textContent = '✓ Password reset email sent to ' + email;
+    el.style.display = 'block';
+  } catch(e) {
+    loginErr(e.code === 'auth/user-not-found' ? 'No account found with that email.' : e.message);
+  }
+}
+function doSignOut() { if (unsubPending) unsubPending(); auth.signOut(); }
+
+document.getElementById('l-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doSignIn(); });
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function go(tab) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.getElementById('nav-' + tab).classList.add('active');
+  const loaders = { dashboard: loadDashboard, pending: loadPending, drivers: () => loadDrivers(drvFilter), senders: loadSenders, jobs: () => loadJobs(jobFilter), withdrawals: loadWithdrawals, leads: loadLeads };
+  if (loaders[tab]) loaders[tab]();
+}
+
+// ── Pending badge ─────────────────────────────────────────────────────────
+function startBadge() {
+  if (unsubPending) unsubPending();
+  unsubPending = db.collection('users')
+    .where('role', '==', 'driver')
+    .where('verificationStatus', '==', 'pending')
+    .onSnapshot(snap => {
+      const b = document.getElementById('pending-badge');
+      if (snap.size > 0) { b.textContent = snap.size; b.style.display = 'inline-block'; }
+      else b.style.display = 'none';
+    });
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  document.getElementById('stats-grid').innerHTML = loading();
+  try {
+    const weekAgo = Date.now() - 7 * 86400000;
+    const [drvSnap, sndSnap, jobSnap, wdSnap, newSnap] = await Promise.all([
+      db.collection('users').where('role', '==', 'driver').get(),
+      db.collection('users').where('role', '==', 'sender').get(),
+      db.collection('jobs').get(),
+      db.collection('withdrawalRequests').where('status', '==', 'pending').get().catch(() => ({ size: 0 })),
+      db.collection('users').where('createdAt', '>=', weekAgo).get(),
+    ]);
+    const drivers = drvSnap.docs.map(d => d.data());
+    const jobs    = jobSnap.docs.map(d => d.data());
+    const completed = jobs.filter(j => j.status === 'completed');
+    const stats = [
+      { icon:'🚛', label:'Total Drivers',    val: drivers.length,                                    color:'#1A5F2B' },
+      { icon:'✅', label:'Verified Drivers',  val: drivers.filter(d => d.verificationStatus === 'verified').length, color:'#059669' },
+      { icon:'⏳', label:'Pending Approval',  val: drivers.filter(d => d.verificationStatus === 'pending').length,  color:'#D97706' },
+      { icon:'🟢', label:'Online Now',        val: drivers.filter(d => d.isOnline).length,            color:'#059669' },
+      { icon:'👥', label:'Senders',           val: sndSnap.size,                                      color:'#0EA5E9' },
+      { icon:'📦', label:'Total Jobs',        val: jobSnap.size,                                      color:'#7C3AED' },
+      { icon:'🏁', label:'Completed Jobs',    val: completed.length,                                  color:'#059669' },
+      { icon:'📂', label:'Open Jobs',         val: jobs.filter(j => j.status === 'open').length,      color:'#0EA5E9' },
+      { icon:'💰', label:'Revenue (est.)',    val: 'R' + (completed.length * 10).toLocaleString('en-ZA'), color:'#059669' },
+      { icon:'🆕', label:'New This Week',     val: newSnap.size,                                      color:'#0EA5E9' },
+      { icon:'💳', label:'Pending Payouts',   val: wdSnap.size,                                       color:'#D97706' },
+    ];
+    document.getElementById('stats-grid').innerHTML = stats.map(s => `
+      <div class="stat-card">
+        <div class="stat-icon" style="background:${s.color}18">${s.icon}</div>
+        <div class="stat-value">${s.val}</div>
+        <div class="stat-label">${s.label}</div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('stats-grid').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── Pending verifications ─────────────────────────────────────────────────
+async function loadPending() {
+  document.getElementById('pending-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('users')
+      .where('role', '==', 'driver')
+      .where('verificationStatus', '==', 'pending')
+      .orderBy('createdAt', 'desc').get();
+    if (snap.empty) { document.getElementById('pending-list').innerHTML = empty('✅','All clear','No drivers waiting for review.'); return; }
+    document.getElementById('pending-list').innerHTML =
+      driverHead() + snap.docs.map(d => driverRow({ id: d.id, ...d.data() })).join('');
+  } catch(e) { document.getElementById('pending-list').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`; }
+}
+
+// ── Drivers ───────────────────────────────────────────────────────────────
+async function loadDrivers(filter) {
+  drvFilter = filter;
+  ['all','verified','pending','rejected'].forEach(f =>
+    document.getElementById('df-' + f).classList.toggle('active', f === filter));
+  document.getElementById('drivers-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('users').where('role', '==', 'driver').get();
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (filter !== 'all') docs = docs.filter(d => d.verificationStatus === filter);
+    docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (!docs.length) { document.getElementById('drivers-list').innerHTML = empty('🚛','No drivers','None match this filter.'); return; }
+    document.getElementById('drivers-list').innerHTML = driverHead() + docs.map(driverRow).join('');
+  } catch(e) { document.getElementById('drivers-list').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`; }
+}
+
+function driverHead() {
+  return `<div class="t-row t-head cols-driver"><span></span><span>Driver</span><span>Phone / City</span><span>Status</span><span>Trips</span><span>Joined</span></div>`;
+}
+function driverRow(d) {
+  const color = avatarColor(d.name);
+  const av = d.selfiePhoto
+    ? `<img src="${esc(d.selfiePhoto)}" alt="" loading="lazy">`
+    : initials(d.name);
+  const statusClass = { verified:'b-verified', pending:'b-pending', rejected:'b-rejected', unverified:'b-pending' }[d.verificationStatus] || 'b-pending';
+  return `
+    <div class="t-row cols-driver clickable" onclick="openDriverModal('${d.id}')">
+      <div class="avatar" style="background:${d.selfiePhoto ? '#E5E7EB' : color}">${av}</div>
+      <div>
+        <div class="row-name">${esc(d.name)}</div>
+        <div class="row-sub">${esc(d.email || '')}</div>
+      </div>
+      <div>
+        <div class="row-sub">${esc(d.phone || '—')}</div>
+        ${d.serviceCity ? `<div class="row-sub">${esc(d.serviceCity)}</div>` : ''}
+      </div>
+      <div>
+        <span class="badge ${statusClass}">${d.verificationStatus || 'pending'}</span>
+        ${d.isOnline ? '<br><span class="badge b-online">🟢 Online</span>' : ''}
+      </div>
+      <div class="row-sub">${d.totalTrips || 0} · ⭐${d.rating ? d.rating.toFixed(1) : '—'}</div>
+      <div class="row-sub">${fmtDate(d.createdAt)}</div>
+    </div>`;
+}
+
+// ── Senders ───────────────────────────────────────────────────────────────
+async function loadSenders() {
+  document.getElementById('senders-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('users').where('role', '==', 'sender').get();
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (!docs.length) { document.getElementById('senders-list').innerHTML = empty('👥','No senders','No registered customers yet.'); return; }
+    const head = `<div class="t-row t-head cols-sender"><span></span><span>Name</span><span>Phone</span><span>Trips</span><span>Joined</span></div>`;
+    const rows = docs.map(d => `
+      <div class="t-row cols-sender">
+        <div class="avatar" style="background:${avatarColor(d.name)}">${initials(d.name)}</div>
+        <div>
+          <div class="row-name">${esc(d.name)}</div>
+          <div class="row-sub">${esc(d.email || '')}</div>
+        </div>
+        <div class="row-sub">${esc(d.phone || '—')}</div>
+        <div class="row-sub">${d.totalTrips || 0}</div>
+        <div class="row-sub">${fmtDate(d.createdAt)}</div>
+      </div>`).join('');
+    document.getElementById('senders-list').innerHTML = head + rows;
+  } catch(e) { document.getElementById('senders-list').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`; }
+}
+
+// ── Jobs ──────────────────────────────────────────────────────────────────
+async function loadJobs(filter) {
+  jobFilter = filter;
+  ['all','open','active','completed','cancelled'].forEach(f =>
+    document.getElementById('jf-' + f).classList.toggle('active', f === filter));
+  document.getElementById('jobs-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('jobs').orderBy('createdAt', 'desc').limit(150).get();
+    const ACTIVE = ['accepted','arrived','in_progress','reviewing'];
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (filter === 'active')    docs = docs.filter(j => ACTIVE.includes(j.status));
+    else if (filter !== 'all')  docs = docs.filter(j => j.status === filter);
+    if (!docs.length) { document.getElementById('jobs-list').innerHTML = empty('📦','No jobs','None match this filter.'); return; }
+    const head = `<div class="t-row t-head cols-job"><span>Pickup → Dropoff</span><span>Posted by</span><span>Driver</span><span>Status</span><span>Date</span></div>`;
+    const rows = docs.map(j => {
+      const isActive = ACTIVE.includes(j.status);
+      const badgeClass = isActive ? 'b-active' : j.status === 'completed' ? 'b-completed' : j.status === 'cancelled' ? 'b-cancelled' : 'b-open';
+      return `
+        <div class="t-row cols-job">
+          <div>
+            <div class="row-name" style="font-size:0.82rem">${esc(j.pickup?.address || '—')}</div>
+            <div class="row-sub">→ ${esc(j.dropoff?.address || '—')}</div>
+            ${j.agreedPrice ? `<div class="row-sub">R${j.agreedPrice}</div>` : ''}
+          </div>
+          <div>
+            <div class="row-sub">${esc(j.posterName || '—')}</div>
+            ${j.city ? `<div class="row-sub">${esc(j.city)}</div>` : ''}
+          </div>
+          <div class="row-sub">${esc(j.acceptedDriverName || '—')}</div>
+          <div><span class="badge ${badgeClass}">${j.status}</span></div>
+          <div class="row-sub">${fmtDate(j.createdAt)}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('jobs-list').innerHTML = head + rows;
+  } catch(e) { document.getElementById('jobs-list').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`; }
+}
+
+// ── Withdrawals ───────────────────────────────────────────────────────────
+async function loadWithdrawals() {
+  document.getElementById('withdrawals-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('withdrawalRequests').orderBy('createdAt', 'desc').get();
+    if (snap.empty) { document.getElementById('withdrawals-list').innerHTML = empty('💳','No withdrawals','No payout requests yet.'); return; }
+    const head = `<div class="t-row t-head cols-withdraw"><span>Driver</span><span>Amount</span><span>Bank Details</span><span>Status</span><span>Actions</span></div>`;
+    const rows = snap.docs.map(doc => {
+      const w = { id: doc.id, ...doc.data() };
+      const bk = w.bankDetails;
+      const statusClass = { pending:'b-pending', processed:'b-processed', rejected:'b-rejected' }[w.status] || 'b-pending';
+      return `
+        <div class="t-row cols-withdraw">
+          <div>
+            <div class="row-name">${esc(w.driverName || '—')}</div>
+            <div class="row-sub">${fmtDate(w.createdAt)}</div>
+          </div>
+          <div class="row-name">R${(w.amount || 0).toFixed(2)}</div>
+          <div>
+            ${bk ? `<div class="row-sub">${esc(bk.bank)}</div>
+                    <div class="row-sub">${esc(bk.accountHolder)}</div>
+                    <div class="row-sub">••••${(bk.accountNumber||'').slice(-4)} · ${bk.accountType}</div>` : '<div class="row-sub">—</div>'}
+          </div>
+          <div><span class="badge ${statusClass}">${w.status}</span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${w.status === 'pending' ? `
+              <button class="btn btn-success btn-sm" onclick="markWithdrawal('${doc.id}','processed')">✓ Paid</button>
+              <button class="btn btn-danger  btn-sm" onclick="markWithdrawal('${doc.id}','rejected')">✕ Reject</button>` : '—'}
+          </div>
+        </div>`;
+    }).join('');
+    document.getElementById('withdrawals-list').innerHTML = head + rows;
+  } catch(e) {
+    const msg = e.code === 'permission-denied'
+      ? '⚠️ Permission denied — deploy the updated Firestore rules to enable admin access.'
+      : `Error: ${e.message}`;
+    document.getElementById('withdrawals-list').innerHTML = `<div class="loading">${msg}</div>`;
+  }
+}
+
+async function markWithdrawal(id, status) {
+  const label = status === 'processed' ? 'Mark as paid?' : 'Reject this withdrawal?';
+  if (!confirm(label)) return;
+  try {
+    await db.collection('withdrawalRequests').doc(id).update({ status, processedAt: Date.now() });
+    loadWithdrawals();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Driver leads ──────────────────────────────────────────────────────────
+async function loadLeads() {
+  document.getElementById('leads-list').innerHTML = loading();
+  try {
+    const snap = await db.collection('driverLeads').orderBy('createdAt', 'desc').get();
+    if (snap.empty) { document.getElementById('leads-list').innerHTML = empty('📋','No leads','No website sign-ups yet.'); return; }
+    const head = `<div class="t-row t-head cols-lead"><span>Name</span><span>Phone</span><span>City</span><span>Vehicle</span><span>Date</span></div>`;
+    const TYPES = { half_ton:'Half-ton', one_ton:'1-Ton', one_half_ton:'1.5-Ton', two_ton:'2-Ton', flatbed:'Flatbed' };
+    const rows = snap.docs.map(doc => {
+      const l = doc.data();
+      return `
+        <div class="t-row cols-lead">
+          <div class="row-name">${esc(l.name || '—')}</div>
+          <div class="row-sub">${esc(l.phone || '—')}</div>
+          <div class="row-sub">${esc(l.city || '—')}</div>
+          <div class="row-sub">${TYPES[l.bakkieType] || '—'}</div>
+          <div class="row-sub">${l.createdAt?.toDate ? fmtDate(l.createdAt.toDate().getTime()) : fmtDate(l.createdAt)}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('leads-list').innerHTML = head + rows;
+  } catch(e) { document.getElementById('leads-list').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`; }
+}
+
+// ── Driver review modal ───────────────────────────────────────────────────
+async function openDriverModal(uid) {
+  modalDriverId = uid; modalDriverData = null;
+  document.getElementById('modal-name').textContent   = 'Loading…';
+  document.getElementById('modal-status').innerHTML   = '';
+  document.getElementById('modal-body').innerHTML     = loading();
+  document.getElementById('modal-foot').style.display = 'none';
+  document.getElementById('driver-overlay').classList.add('open');
+
+  try {
+    const snap = await db.collection('users').doc(uid).get();
+    if (!snap.exists) throw new Error('Driver not found');
+    const d = { id: snap.id, ...snap.data() };
+    modalDriverData = d;
+
+    document.getElementById('modal-name').textContent = d.name || 'Driver';
+    const sc = { verified:'b-verified', pending:'b-pending', rejected:'b-rejected' }[d.verificationStatus] || 'b-pending';
+    document.getElementById('modal-status').innerHTML = `<span class="badge ${sc}">${d.verificationStatus || 'pending'}</span>`;
+
+    const photoBox = (label, url, landscape) => `
+      <div class="photo-card">
+        <label>${label}</label>
+        <div class="photo-box ${landscape ? 'landscape' : ''}" ${url ? `onclick="lb('${url.replace(/'/g,"\\'")}'"` : ''}>
+          ${url
+            ? `<img src="${esc(url)}" alt="${label}" loading="lazy">`
+            : `<div class="no-photo">📷<br>Not uploaded</div>`}
+        </div>
+      </div>`;
+
+    document.getElementById('modal-body').innerHTML = `
+      <p class="sec-title">Identity</p>
+      <div class="photo-grid">
+        ${photoBox('Selfie', d.selfiePhoto)}
+        ${photoBox('SA ID Document', d.idDocumentPhoto)}
+      </div>
+
+      <p class="sec-title">Driver's Licence</p>
+      <div class="photo-grid">
+        ${photoBox("Driver's Licence", d.licencePhotoUrl)}
+        <div></div>
+      </div>
+
+      <p class="sec-title">Vehicle Documents</p>
+      <div class="photo-grid">
+        ${photoBox('Licence Disc', d.vehicleDiscPhotoUrl)}
+        ${photoBox('Number Plate', d.vehiclePlatePhotoUrl, true)}
+      </div>
+
+      <p class="sec-title">Bakkie Photos (4 angles)</p>
+      <div class="photo-grid photo-grid-4">
+        ${photoBox('Front', d.vehicleFrontPhotoUrl, true)}
+        ${photoBox('Back',  d.vehicleBackPhotoUrl,  true)}
+        ${photoBox('Left',  d.vehicleLeftPhotoUrl,  true)}
+        ${photoBox('Right', d.vehicleRightPhotoUrl, true)}
+      </div>
+
+      <p class="sec-title">Driver Details</p>
+      <div class="details-card">
+        ${row('Full Name',    d.name)}
+        ${row('Phone',        d.phone)}
+        ${row('Email',        d.email)}
+        ${row('SA ID Number', d.idNumber)}
+        ${row('Registration', d.registrationNumber)}
+        ${row('Service City', d.serviceCity)}
+        ${row('Rating',       d.rating ? `⭐ ${d.rating.toFixed(1)} (${d.totalTrips || 0} trips)` : '—')}
+        ${row('Submitted',    fmtDateTime(d.createdAt))}
+        ${d.rejectionReason ? row('Rejection Reason', d.rejectionReason) : ''}
+      </div>
+
+      <p class="sec-title">Verification Checklist</p>
+      <div class="checklist">
+        ${['Selfie is clear — face fully visible',
+           'SA ID document legible and not expired',
+           'Face in selfie matches the ID document',
+           'ID number matches the document',
+           "Driver's licence is valid and legible",
+           'Vehicle licence disc is current and visible',
+           'Number plate is legible and matches registration',
+           'All 4 bakkie photos are clear and from the correct angles',
+          ].map(t => `<label class="chk"><input type="checkbox"> ${t}</label>`).join('')}
+      </div>
+    `;
+
+    if (d.verificationStatus === 'pending') {
+      document.getElementById('modal-foot').style.display = 'flex';
+    }
+  } catch(e) {
+    document.getElementById('modal-body').innerHTML = `<div class="loading">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeDriverModal() {
+  document.getElementById('driver-overlay').classList.remove('open');
+  modalDriverId = null; modalDriverData = null;
+}
+
+async function doApprove() {
+  if (!modalDriverId || !modalDriverData) return;
+  if (!confirm(`Approve ${modalDriverData.name}? They will be marked as verified and can go online.`)) return;
+  const btn = document.getElementById('approve-btn');
+  btn.disabled = true; btn.textContent = 'Approving…';
+  try {
+    await db.collection('users').doc(modalDriverId).update({
+      verificationStatus: 'verified',
+      rejectionReason: FS.delete(),
+    });
+    closeDriverModal();
+    loadPending();
+    loadDashboard();
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false; btn.textContent = '✓ Approve Driver';
+  }
+}
+
+function openRejectModal()  { document.getElementById('reject-overlay').classList.add('open'); }
+function closeRejectModal() { document.getElementById('reject-overlay').classList.remove('open'); }
+
+async function doReject(reason) {
+  if (!modalDriverId || !modalDriverData) return;
+  closeRejectModal();
+  try {
+    await db.collection('users').doc(modalDriverId).update({
+      verificationStatus: 'rejected',
+      rejectionReason: reason,
+    });
+    closeDriverModal();
+    loadPending();
+    loadDashboard();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────
+function lb(url) {
+  document.getElementById('lb-img').src = url;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function initials(name) {
+  return (name || '?').split(' ').map(w => w[0] || '').join('').slice(0,2).toUpperCase();
+}
+const AV_COLORS = ['#1A5F2B','#059669','#0EA5E9','#7C3AED','#D97706','#DC2626','#0891B2'];
+function avatarColor(name) {
+  let h = 0;
+  for (const c of (name || '')) h = (h * 31 + c.charCodeAt(0)) & 0xFFFF;
+  return AV_COLORS[h % AV_COLORS.length];
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-ZA', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function loading() { return '<div class="loading"><div class="spinner"></div>Loading…</div>'; }
+function empty(icon, title, text) {
+  return `<div class="empty"><div class="ei">${icon}</div><h3>${title}</h3><p>${text}</p></div>`;
+}
+function row(label, value) {
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${esc(value || '—')}</span></div>`;
+}
+
+// Close overlays on background click
+document.getElementById('driver-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeDriverModal(); });
+document.getElementById('reject-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeRejectModal(); });
+</script>
+</body>
+</html>

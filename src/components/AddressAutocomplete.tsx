@@ -1,19 +1,27 @@
-import React, { forwardRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useState, useRef, useCallback } from 'react';
 import {
-  GooglePlacesAutocomplete,
-  GooglePlacesAutocompleteRef,
-} from 'react-native-google-places-autocomplete';
-import * as Location from 'expo-location';
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, ActivityIndicator,
+} from 'react-native';
 import Constants from 'expo-constants';
 import { colors } from '../constants/colors';
 
-const API_KEY: string =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ??
-  (Constants.expoConfig?.extra as any)?.googleMapsKey ??
+const MAPBOX_TOKEN: string =
+  process.env.EXPO_PUBLIC_MAPBOX_TOKEN ??
+  (Constants.expoConfig?.extra as any)?.mapboxToken ??
   '';
 
 export interface Coords { latitude: number; longitude: number }
+
+export interface AddressAutocompleteRef {
+  setText: (text: string) => void;
+}
+
+interface Suggestion {
+  id: string;
+  place_name: string;
+  center: [number, number]; // [lng, lat]
+}
 
 interface Props {
   label?: string;
@@ -22,70 +30,90 @@ interface Props {
   zIndex?: number;
 }
 
-const AddressAutocomplete = forwardRef<GooglePlacesAutocompleteRef, Props>(
+const AddressAutocomplete = forwardRef<AddressAutocompleteRef, Props>(
   ({ label, placeholder, onSelect, zIndex = 1 }, ref) => {
+    const [text, setText]             = useState('');
+    const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+    const [loading, setLoading]       = useState(false);
+    const [open, setOpen]             = useState(false);
+    const debounceRef                 = useRef<ReturnType<typeof setTimeout>>();
 
-    const handlePress = async (data: any, _details: any) => {
-      const address = data.description ?? data.structured_formatting?.main_text ?? '';
+    useImperativeHandle(ref, () => ({
+      setText: (val: string) => {
+        setText(val);
+        setSuggestions([]);
+        setOpen(false);
+      },
+    }));
 
-      // Primary: device geocoder (free — no API billing)
+    const search = useCallback(async (query: string) => {
+      if (query.length < 2) { setSuggestions([]); setOpen(false); return; }
+      setLoading(true);
       try {
-        const results = await Location.geocodeAsync(address);
-        if (results.length > 0 && (results[0].latitude !== 0 || results[0].longitude !== 0)) {
-          onSelect(address, { latitude: results[0].latitude, longitude: results[0].longitude });
-          return;
-        }
-      } catch {}
-
-      // Fallback: Google Geocoding API (cheaper than Places Details)
-      if (API_KEY && address) {
-        try {
-          const res = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${API_KEY}`
-          );
-          const json = await res.json();
-          const geoLoc = json.results?.[0]?.geometry?.location;
-          if (geoLoc?.lat != null && geoLoc?.lng != null) {
-            onSelect(address, { latitude: geoLoc.lat, longitude: geoLoc.lng });
-            return;
-          }
-        } catch {}
+        const url =
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +
+          `?access_token=${MAPBOX_TOKEN}&country=ZA&language=en&limit=6` +
+          `&types=address,place,street,locality,neighborhood,poi,region`;
+        const res  = await fetch(url);
+        const json = await res.json();
+        const features: Suggestion[] = json.features ?? [];
+        setSuggestions(features);
+        setOpen(features.length > 0);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
       }
+    }, []);
 
-      onSelect(address, { latitude: 0, longitude: 0 });
+    const handleChange = (val: string) => {
+      setText(val);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => search(val), 350);
+    };
+
+    const handleSelect = (item: Suggestion) => {
+      const [lng, lat] = item.center;
+      setText(item.place_name);
+      setSuggestions([]);
+      setOpen(false);
+      onSelect(item.place_name, { latitude: lat, longitude: lng });
     };
 
     return (
       <View style={[styles.wrapper, { zIndex }]}>
         {label && <Text style={styles.label}>{label}</Text>}
-        <GooglePlacesAutocomplete
-          ref={ref}
-          placeholder={placeholder}
-          keyboardShouldPersistTaps="handled"
-          onPress={handlePress}
-          query={{
-            key: API_KEY,
-            language: 'en',
-            components: 'country:za',
-          }}
-          enablePoweredByContainer={false}
-          debounce={350}
-          minLength={2}
-          styles={{
-            container: { flex: 0, zIndex },
-            textInputContainer: styles.inputContainer,
-            textInput: styles.textInput,
-            listView: {
-              ...StyleSheet.flatten(styles.listView),
-              zIndex: zIndex + 99,
-              elevation: zIndex + 99,
-            },
-            row: styles.row,
-            description: styles.rowText,
-            separator: styles.separator,
-            poweredContainer: { display: 'none' },
-          }}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            value={text}
+            onChangeText={handleChange}
+            onFocus={() => suggestions.length > 0 && setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            autoCorrect={false}
+            autoCapitalize="words"
+          />
+          {loading && (
+            <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
+          )}
+        </View>
+
+        {open && suggestions.length > 0 && (
+          <View style={[styles.dropdown, { zIndex: zIndex + 99, elevation: zIndex + 99 }]}>
+            {suggestions.map((item, i) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.row, i < suggestions.length - 1 && styles.rowBorder]}
+                onPress={() => handleSelect(item)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.rowText} numberOfLines={2}>{item.place_name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     );
   }
@@ -95,31 +123,34 @@ AddressAutocomplete.displayName = 'AddressAutocomplete';
 export default AddressAutocomplete;
 
 const styles = StyleSheet.create({
-  wrapper: { marginBottom: 16 },
+  wrapper:   { marginBottom: 16 },
   label: {
     fontSize: 13, fontWeight: '600', color: colors.textSecondary,
     marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  inputContainer: {
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center',
     borderRadius: 10, borderWidth: 1.5, borderColor: colors.border,
     backgroundColor: colors.surface, paddingHorizontal: 14,
+    height: 50,
   },
-  textInput: {
-    height: 50, fontSize: 16, color: colors.text,
-    backgroundColor: 'transparent', margin: 0, padding: 0,
+  input: {
+    flex: 1, fontSize: 16, color: colors.text,
   },
-  listView: {
+  spinner:  { marginLeft: 8 },
+  dropdown: {
+    position: 'absolute', top: '100%', left: 0, right: 0,
     backgroundColor: colors.surface,
     borderRadius: 10, borderWidth: 1, borderColor: colors.border,
     marginTop: 2,
-    elevation: 8,
     shadowColor: '#000', shadowOpacity: 0.12,
     shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    overflow: 'hidden',
   },
   row: {
     paddingHorizontal: 14, paddingVertical: 13,
     backgroundColor: colors.surface,
   },
-  rowText: { fontSize: 14, color: colors.text },
-  separator: { height: 1, backgroundColor: colors.divider, marginHorizontal: 14 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowText:   { fontSize: 14, color: colors.text },
 });

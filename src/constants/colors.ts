@@ -1,42 +1,61 @@
-// South African flag colours
+// Premium Modern Design System for Move-Me
+// Inspired by: Uber, Stripe, Linear, Notion, Revolut
+
 export const colors = {
-  // SA Flag
-  green: '#007A4D',
-  gold: '#FFB612',
-  red: '#E03C31',
-  blue: '#002395',
-  black: '#1A1A1A',
+  // Primary Color System
+  primary: '#0F172A',        // Deep Navy — brand primary
+  secondary: '#1E293B',      // Slate — secondary actions
+  accent: '#F59E0B',         // Premium Gold/Amber — CTAs, highlights
+
+  // Semantic Colors
+  success: '#22C55E',        // Success/completed states
+  warning: '#EAB308',        // Warning states
+  error: '#EF4444',          // Errors and destructive actions
+  info: '#3B82F6',           // Informational states
+
+  // Surfaces & Backgrounds
+  background: '#F8FAFC',     // Light app background
+  surface: '#FFFFFF',        // Card/surface background
+  surfaceAlt: '#F1F5F9',     // Alternative surface
+  surfaceHover: '#F8FAFC',   // Hover state surface
+  overlay: 'rgba(15, 23, 42, 0.45)',  // Dark overlay
+
+  // Text Colors
+  text: '#0F172A',           // Primary text
+  textSecondary: '#475569',  // Secondary text
+  textMuted: '#64748B',      // Muted/disabled text
+  textOnPrimary: '#FFFFFF',  // Text on primary background
+  textOnAccent: '#0F172A',   // Text on accent background
+
+  // UI Elements
+  border: '#E2E8F0',         // Subtle borders
+  borderLight: '#F1F5F9',    // Very light borders
+  divider: '#F1F5F9',        // Divider lines
+  placeholder: '#94A3B8',    // Placeholder text
+
+  // Status Colors (Legacy - kept for compatibility)
+  online: '#22C55E',
+  offline: '#94A3B8',
+  pending: '#F59E0B',
+  active: '#3B82F6',
+  completed: '#22C55E',
+  cancelled: '#EF4444',
+
+  // Premium Shadows & Depth
+  shadowSm: 'rgba(15, 23, 42, 0.05)',
+  shadowMd: 'rgba(15, 23, 42, 0.1)',
+  shadowLg: 'rgba(15, 23, 42, 0.15)',
+
+  // Semantic Status
+  success: '#22C55E',
+  danger: '#EF4444',
+  warning: '#EAB308',
+
+  // Legacy compatibility
+  green: '#22C55E',
+  gold: '#F59E0B',
+  red: '#EF4444',
+  blue: '#3B82F6',
+  black: '#0F172A',
   white: '#FFFFFF',
-
-  // App theme
-  primary: '#007A4D',       // SA green — brand
-  accent: '#FFB612',        // SA gold — CTAs, highlights
-  danger: '#E03C31',        // SA red — cancel, errors
-  info: '#002395',          // SA blue — secondary actions
-
-  // Surfaces
-  background: '#F4F5F4',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F0F4F0',
-
-  // Text
-  text: '#1A1A1A',
-  textSecondary: '#555555',
-  textMuted: '#999999',
-  textOnPrimary: '#FFFFFF',
-  textOnAccent: '#1A1A1A',
-
-  // UI
-  border: '#E0E0E0',
-  divider: '#EEEEEE',
-  placeholder: '#BBBBBB',
-  overlay: 'rgba(0,0,0,0.45)',
-
-  // Status
-  online: '#007A4D',
-  offline: '#999999',
-  pending: '#FFB612',
-  active: '#002395',
-  completed: '#007A4D',
-  cancelled: '#E03C31',
 };
