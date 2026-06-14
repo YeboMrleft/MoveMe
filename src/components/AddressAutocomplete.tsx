@@ -15,6 +15,7 @@ export interface Coords { latitude: number; longitude: number }
 
 export interface AddressAutocompleteRef {
   setText: (text: string) => void;
+  getAddressText: () => string;
 }
 
 interface Suggestion {
@@ -44,6 +45,7 @@ const AddressAutocomplete = forwardRef<AddressAutocompleteRef, Props>(
         setSuggestions([]);
         setOpen(false);
       },
+      getAddressText: () => text,
     }));
 
     const search = useCallback(async (query: string) => {
