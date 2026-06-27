@@ -9,12 +9,12 @@ interface HeaderProps {
   subtitle?: string;
   variant?: 'default' | 'large';
   rightAction?: {
-    icon: string;
+    icon: any;
     onPress: () => void;
     label?: string;
   };
   leftAction?: {
-    icon?: string;
+    icon?: any;
     onPress?: () => void;
     label?: string;
   };

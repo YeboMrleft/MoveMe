@@ -469,6 +469,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[1],
     paddingVertical: spacing[0],
   },
+  verifiedText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: colors.white,
+  },
   badgeText: {
     fontSize: 10,
     fontWeight: '700',

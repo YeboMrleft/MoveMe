@@ -62,6 +62,8 @@ if (!IS_EXPO_GO) {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
       }),
     });
   } catch {}

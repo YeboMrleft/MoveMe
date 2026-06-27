@@ -32,7 +32,7 @@ const AddressAutocomplete = forwardRef<AddressAutocompleteRef, Props>(
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useImperativeHandle(ref, () => ({
       setText: (val: string) => {

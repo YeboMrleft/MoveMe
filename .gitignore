@@ -44,3 +44,6 @@ yarn-error.*
 
 # Firebase cache
 .firebase/
+
+# Design-sync preview bundle (pushed to claude.ai/design, not app source)
+design-system-preview/

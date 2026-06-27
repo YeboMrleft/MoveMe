@@ -46,12 +46,8 @@ export const colors = {
   shadowMd: 'rgba(15, 23, 42, 0.1)',
   shadowLg: 'rgba(15, 23, 42, 0.15)',
 
-  // Semantic Status
-  success: '#22C55E',
-  danger: '#EF4444',
-  warning: '#EAB308',
-
   // Legacy compatibility
+  danger: '#EF4444',
   green: '#22C55E',
   gold: '#F59E0B',
   red: '#EF4444',

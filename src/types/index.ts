@@ -56,8 +56,12 @@ export interface User {
     accountNumber: string;
     accountType: 'cheque' | 'savings';
   };
+  // profile
+  profileComplete?: boolean;
+  residentialAddress?: string;
   // verification
   verificationStatus?: VerificationStatus;
+  rejectionReason?: string;
   idNumber?: string;
   idDocumentPhoto?: string;
   selfiePhoto?: string;
